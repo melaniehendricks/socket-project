@@ -1,21 +1,56 @@
 #!/usr/bin/python3
 
-import socket
-import argparse
+import socket       # for sockets
+import argparse     # to parse cmd line args
+import math         # for math library
+import sys
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--manager-port", required=True, type=int, choices=range(7500,7999))
-# IP not sanitized
-parser.add_argument("--manager-ip", required=True, type=str)
+
+# add arguments for manager-ip, group, manager-port
+parser.add_argument("--m-ip", required=True, type=str)        # IP not sanitized
+parser.add_argument("--group", required=True, type=int)
+parser.add_argument("--m-port", required=True, type=int)
+parser.add_argument("--p-port", type=int)
+
 args = parser.parse_args()
 
-UDP_IP = args.manager_ip
-UDP_PORT = args.manager_port
-MESSAGE = b"Hello, World"
+# assign arguments to variables
+mgrIP = args.m_ip
+peerIP = "127.0.0.1"
+group = args.group
+mgrPort = args.m_port
+peerPort = args.p_port
 
-print("UDP target IP: %s" % UDP_IP)
-print("UDP target port: %d" % UDP_PORT)
+# calc port range based on group
+portMin = (math.ceil(group/2) * 1000) + 500
+portMax = (math.ceil(group/2) * 1000) + 999
+
+MESSAGE = b"Hello, World"
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.sendto(MESSAGE, (mgrIP, mgrPort))
+
+if peerPort:
+    if peerPort >= portMin and peerPort <= portMax:
+        try:
+            sock.bind((peerIP, peerPort))
+        except:
+            "invalid port"
+else:
+    for p in range(portMin, portMax):
+        try:
+            sock.bind((peerIP, p))
+        except:
+            "failure to bind to port"
+
+print("UDP target IP: %s" % mgrIP)
+print("UDP target port: %d" % mgrPort)
 print("message: %s" % MESSAGE)
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+# infinite loop listening to given port incoming messages from peers
+while True:
+    data, addr = sock.recvfrom(1024)
+    print("received message: %s" % data)
+    for a in addr:
+        print("from %s" % a)
+
