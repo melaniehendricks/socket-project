@@ -4,8 +4,9 @@ import socket
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--port", required=True, type=int, choices=range(5000,5500))
+parser.add_argument("--port", required=True, type=int, choices=range(7500,7999))
 args = parser.parse_args()
+
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = args.port
@@ -21,3 +22,5 @@ print("bind successful")
 while True:
     data, addr = sock.recvfrom(1024)
     print("received message: %s" % data)
+    for a in addr:
+        print("from %s" % a)

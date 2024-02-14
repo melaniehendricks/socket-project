@@ -4,7 +4,7 @@ import socket
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--manager-port", required=True, type=int, choices=range(5000,5500))
+parser.add_argument("--manager-port", required=True, type=int, choices=range(7500,7999))
 # IP not sanitized
 parser.add_argument("--manager-ip", required=True, type=str)
 args = parser.parse_args()
