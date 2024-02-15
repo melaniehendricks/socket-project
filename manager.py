@@ -42,10 +42,26 @@ while True:
         
         if key.fd == sock.fileno():
             msg, addr = sockToRead.recvfrom(1024)
-            print("message from socket: %s" % msg)
-        #print("received message: %s" % data)
-        peerIP, peerPort = addr
-        sock.sendto(b"POOOOP", (peerIP, peerPort))
+            decoded = msg.decode('utf-8')
+            peerIP, peerPort = addr
+            
+            dict = eval(decoded)                        # convert to dictionary
+            command = dict["command"]
+            peerName = dict["peer-name"]
+            if command == "register":
+                names = peerDict.keys()
+                if peerName in names:
+                    sock.sendto("FAILURE", (peerIP, peerPort))
+                else:
+                    status = {"status":"free"}
+                    peerDict[peerName].append(status)
+                    print("%s added.  Status: %s" % peerName, peerDict[peerName]["status"])
+                    sock.sendto("SUCCESS")
+                
+
+            #print("received message: %s" % data)
+            
+            sock.sendto(b"POOOOP", (peerIP, peerPort))
 
 
 

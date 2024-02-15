@@ -34,7 +34,7 @@ len = len(names) - 1
 portMin = (math.ceil(group/2) * 1000) + 500
 portMax = (math.ceil(group/2) * 1000) + 999
 
-MESSAGE = b"Hello, World"
+MESSAGE = b""
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 selector = selectors.DefaultSelector()
@@ -53,14 +53,15 @@ else:
     for p in range(portMin, portMax):
         try:
             sock.bind((peerIP, p))
+            peerPort = p
             print("successful bind to port %d" % sock.getsockname)
         except:
             "failure to bind to port"
 
-sock.sendto(MESSAGE, (mgrIP, mgrPort))
+#sock.sendto(MESSAGE, (mgrIP, mgrPort))
 print("UDP target IP: %s" % mgrIP)
 print("UDP target port: %d" % mgrPort)
-print("message: %s" % MESSAGE)
+#print("message: %s" % MESSAGE)
 
 # infinite loop listening to given port incoming messages from peers
 while True:
