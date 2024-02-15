@@ -10,8 +10,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--port", required=True, type=int, choices=range(7500,7999))
 args = parser.parse_args()
 
-UDP_IP = "127.0.0.1"
-UDP_PORT = args.port
+mgrIP = "127.0.0.1"
+mgrPort = args.port
+peerDict = {}                                           # store peer-name/state
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -19,8 +20,8 @@ selector = selectors.DefaultSelector()
 selector.register(sock, selectors.EVENT_READ)           # register sockets to listen to
 selector.register(sys.stdin, selectors.EVENT_READ)      # register stdin to listen for
 
-print("attempting to bind to %s on port" % UDP_IP, UDP_PORT)
-sock.bind((UDP_IP, UDP_PORT))
+print("attempting to bind to %s on port" % mgrIP, mgrPort)
+sock.bind((mgrIP, mgrPort))
 print("bind successful")
 
 
