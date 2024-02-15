@@ -30,6 +30,7 @@ portMax = (math.ceil(group/2) * 1000) + 999
 MESSAGE = b"Hello, World"
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+# bind to valid port
 if peerPort:
     if peerPort >= portMin and peerPort <= portMax:
         try:
@@ -53,6 +54,4 @@ print("message: %s" % MESSAGE)
 while True:
     data, addr = sock.recvfrom(1024)
     print("received message: %s" % data)
-    for a in addr:
-        print("from %s" % a)
 

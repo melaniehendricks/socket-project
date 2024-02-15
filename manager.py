@@ -19,8 +19,7 @@ selector = selectors.DefaultSelector()
 selector.register(sock, selectors.EVENT_READ)           # register sockets to listen to
 selector.register(sys.stdin, selectors.EVENT_READ)      # register stdin to listen for
 
-print("attempting to bind to %s" % UDP_IP)
-print("on port %d" % UDP_PORT)
+print("attempting to bind to %s on port" % UDP_IP, UDP_PORT)
 sock.bind((UDP_IP, UDP_PORT))
 print("bind successful")
 
@@ -43,9 +42,9 @@ while True:
         if key.fd == sock.fileno():
             msg, addr = sockToRead.recvfrom(1024)
             print("message from socket: %s" % msg)
-        print("received message: %s" % data)
-        for a in addr:
-           print("from %s" % a)
+        #print("received message: %s" % data)
+        peerIP, peerPort = addr
+        sock.sendto(b"POOOOP", (peerIP, peerPort))
 
 
 
