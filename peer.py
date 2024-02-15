@@ -4,6 +4,7 @@ import socket       # for sockets
 import argparse     # to parse cmd line args
 import math         # for math library
 import sys
+import json
 
 parser = argparse.ArgumentParser()
 
@@ -28,7 +29,6 @@ portMax = (math.ceil(group/2) * 1000) + 999
 
 MESSAGE = b"Hello, World"
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.sendto(MESSAGE, (mgrIP, mgrPort))
 
 if peerPort:
     if peerPort >= portMin and peerPort <= portMax:
@@ -40,9 +40,11 @@ else:
     for p in range(portMin, portMax):
         try:
             sock.bind((peerIP, p))
+            print("successful bind to port %d" % sock.getsockname)
         except:
             "failure to bind to port"
 
+sock.sendto(MESSAGE, (mgrIP, mgrPort))
 print("UDP target IP: %s" % mgrIP)
 print("UDP target port: %d" % mgrPort)
 print("message: %s" % MESSAGE)

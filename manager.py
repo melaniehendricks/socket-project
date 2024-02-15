@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 
-import socket
-import argparse
-import selectors
-import sys
+import socket       # for sockets
+import argparse     # to parse cmd line args
+import selectors    # selectors module to handle multiple events
+import sys          # keyboard input
+import json         # json objects
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", required=True, type=int, choices=range(7500,7999))
@@ -33,7 +34,7 @@ while True:
     for key, _ in events:
         sockToRead = key.fileobj
         data = sockToRead
-        print(key)
+
         if key.fd == sys.stdin.fileno():
             #msg = input("")
             msg = sys.stdin.readline()
@@ -42,9 +43,9 @@ while True:
         if key.fd == sock.fileno():
             msg, addr = sockToRead.recvfrom(1024)
             print("message from socket: %s" % msg)
-        #print("received message: %s" % data)
-        #for a in addr:
-         #   print("from %s" % a)
+        print("received message: %s" % data)
+        for a in addr:
+           print("from %s" % a)
 
 
 
