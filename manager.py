@@ -66,7 +66,7 @@ while True:
             msg, addr = sockToRead.recvfrom(1024)
             decoded = msg.decode('utf-8')
             peerIP, peerPort = addr
-            print(decoded)
+            #print(decoded)
             
             dict = eval(decoded)                                    # convert to dictionary and deconstruct
             command = dict["command"]
@@ -77,9 +77,8 @@ while True:
                 names = []
                 ports = []
                 items = peerDict.items()
-                print(items)
+                #print(items)
 
-                # ============== START HERE
                 if len(items) > 1:
                     for item in range(0, len(items)):
                         peer = peerDict.get(item)
