@@ -10,6 +10,8 @@ import json
 
 parser = argparse.ArgumentParser()
 
+# peer.py --m-ip 192.168.1.4 --group 13 --m-port 7501 --p-ip 0.0.0.0
+
 # add arguments for manager-ip, group, manager-port
 parser.add_argument("--m-ip", required=True, type=str)        # IP not sanitized
 parser.add_argument("--group", required=True, type=int)
