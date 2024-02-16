@@ -64,6 +64,7 @@ else:
             ip, pt = sock.getsockname()
             if pt >= portMin and pt <= portMax:
                 print("successful bind to port %d" % pt)
+                peerPort = pt
                 break           
         except:
             sys.exit("Error: failure to bind to any port")
@@ -76,6 +77,7 @@ while True:
         sockToRead = key.fileobj
         data = sockToRead
 
+        # if keyboard input
         if key.fd == sys.stdin.fileno():
             #msg = input("")
             msg = sys.stdin.readline()
@@ -89,10 +91,14 @@ while True:
                 commandDict["p-port"] = peerPort
                 names.pop(rand)
                 jsonData = json.dumps(commandDict)
+                print(jsonData)
                 sock.sendto(jsonData.encode(), (mgrIP, mgrPort))
         
+        # if socket
         if key.fd == sock.fileno():
             msg, addr = sockToRead.recvfrom(1024)
-            print("message from socket: %s" % msg)
+            
+            # parse msg
+            
 
 

@@ -4,7 +4,7 @@ import socket       # for sockets
 import argparse     # to parse cmd line args
 import selectors    # selectors module to handle multiple events
 import sys          # keyboard input
-import json         # json objects\
+import json         # json objects
 import math
 
 
@@ -15,10 +15,14 @@ parser.add_argument("--m-ip", required=True, type=str)
 parser.add_argument("--group", required=True, type=int)
 args = parser.parse_args()
 
+# assign arguments to variables
 mgrIP = args.m_ip
 mgrPort = args.port
 group = args.group
 peerDict = {}                                           # store peer-name/state
+
+# packet variables
+responseDict = {}
 
 # calc port range based on group
 portMin = (math.ceil(group/2) * 1000) + 500
@@ -62,6 +66,7 @@ while True:
             msg, addr = sockToRead.recvfrom(1024)
             decoded = msg.decode('utf-8')
             peerIP, peerPort = addr
+            print(decoded)
             
             dict = eval(decoded)                                    # convert to dictionary and deconstruct
             command = dict["command"]
@@ -82,8 +87,18 @@ while True:
                         names.append(peer["peer-name"])
                         ports.append(peer["p-port"])
 
-                if peerName in names or peerPort in ports:                               # if name is not unique, FAILURE
-                    sock.sendto(b"FAILURE", (peerIP, peerPort))
+                if peerName in names:                                   # if name is not unique, FAILURE
+                    responseDict["return-code"] = "FAILURE"
+                    responseDict["command"] = command
+                    responseDict["reason"] = "name"
+                    jsonData = json.dumps(responseDict)
+                    sock.sento(jsonData.encode(), (peerIP, peerPort))
+                if peerPort in ports:                                   # if port is not unique, FAILURE
+                    responseDict["return-code"] = "FAILURE"
+                    responseDict["command"] = command
+                    responseDict["reason"] = "port"
+                    jsonData = json.dumps(responseDict)
+                    sock.sendto(jsonData.encode(), (peerIP, peerPort))             
                 else:
                     length = len(names)
                     peerDict[length] = {}
@@ -91,7 +106,10 @@ while True:
                     peerDict[length]["status"] = 'free'
                     peerDict[length]["p-port"] = peerPort
                     #print(peerDict)
-                    sock.sendto(b"SUCCESS", (peerIP, peerPort))     # SUCCESS
+                    responseDict = {"return-code" : "SUCCESS"}
+                    jsonData = json.dumps(responseDict)
+                    sock.sendto(jsonData.encode(), (peerIP, peerPort))
+
                 
 
 
