@@ -84,7 +84,6 @@ while True:
                 names.pop(rand)
                 jsonData = json.dumps(commandDict)
                 sock.sendto(jsonData.encode(), (mgrIP, mgrPort))
-                print("json sent to manager")
         
         if key.fd == sock.fileno():
             msg, addr = sockToRead.recvfrom(1024)

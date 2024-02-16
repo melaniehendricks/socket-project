@@ -25,11 +25,8 @@ sock.bind((mgrIP, mgrPort))
 print("bind successful")
 
 
-# infinite loop listening to given port incoming messages from peers
+# infinite loop listening to given port for incoming messages from peers
 while True:
-    # parse json
-    # get command
-    # if command == register: register(peer-name, IP, m-port, p-port)
     events = selector.select()
     for key, _ in events:
         sockToRead = key.fileobj
@@ -45,31 +42,21 @@ while True:
             decoded = msg.decode('utf-8')
             peerIP, peerPort = addr
             
-            dict = eval(decoded)                        # convert to dictionary
+            dict = eval(decoded)                                    # convert to dictionary and deconstruct
             command = dict["command"]
             peerName = dict["peer-name"]
+
+            # peer wants to register 
             if command == "register":
                 names = peerDict.keys()
-                if peerName in names:
+                if peerName in names:                               # if name is not unique, FAILURE
                     sock.sendto("FAILURE", (peerIP, peerPort))
                 else:
-                    status = {"status":"free"}
-                    peerDict[peerName].append(status)
-                    print("%s added.  Status: %s" % peerName, peerDict[peerName]["status"])
-                    sock.sendto("SUCCESS")
+                    len = len(names)
+                    peerDict[len] = {}
+                    peerDict[len]["peer-name"] = peerName           # create peer element in dictionary
+                    peerDict[len]["status"] = 'free'
+                    sock.sendto(b"SUCCESS", (peerIP, peerPort))     # SUCCESS
                 
 
-            #print("received message: %s" % data)
-            
-            sock.sendto(b"POOOOP", (peerIP, peerPort))
 
-
-
-#def register(peer-name, IP, m-port, p-port):
-    # store peer-name, IP, 2 ports
-    # state of peer = free
-    
-    # if peer-name and p-port is unique, send back "SUCCESS"
-    # else send back "FAILURE"
-
-#def setupDHT(peer-name, n, year):
