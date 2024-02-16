@@ -8,9 +8,10 @@ import json         # json objects
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", required=True, type=int, choices=range(7500,7999))
+parser.add_argument("--m-ip", required=True, type=str)
 args = parser.parse_args()
 
-mgrIP = "127.0.0.1"
+mgrIP = args.m_ip
 mgrPort = args.port
 peerDict = {}                                           # store peer-name/state
 
@@ -32,11 +33,12 @@ while True:
         sockToRead = key.fileobj
         data = sockToRead
 
+        # if keyboard input
         if key.fd == sys.stdin.fileno():
-            #msg = input("")
             msg = sys.stdin.readline()
             print("message from keyboard: %s" % msg)
         
+        # if socket
         if key.fd == sock.fileno():
             msg, addr = sockToRead.recvfrom(1024)
             decoded = msg.decode('utf-8')
@@ -48,14 +50,28 @@ while True:
 
             # peer wants to register 
             if command == "register":
-                names = peerDict.keys()
-                if peerName in names:                               # if name is not unique, FAILURE
-                    sock.sendto("FAILURE", (peerIP, peerPort))
+                names = []
+                ports = []
+                items = peerDict.items()
+                print(items)
+
+                # ============== START HERE
+                if len(items) > 1:
+                    for item in range(0, len(items)):
+                        peer = peerDict.get(item)
+                        #print(peer)
+                        names.append(peer["peer-name"])
+                        ports.append(peer["p-port"])
+
+                if peerName in names or peerPort in ports:                               # if name is not unique, FAILURE
+                    sock.sendto(b"FAILURE", (peerIP, peerPort))
                 else:
-                    len = len(names)
-                    peerDict[len] = {}
-                    peerDict[len]["peer-name"] = peerName           # create peer element in dictionary
-                    peerDict[len]["status"] = 'free'
+                    length = len(names)
+                    peerDict[length] = {}
+                    peerDict[length]["peer-name"] = peerName           # create peer element in dictionary
+                    peerDict[length]["status"] = 'free'
+                    peerDict[length]["p-port"] = peerPort
+                    #print(peerDict)
                     sock.sendto(b"SUCCESS", (peerIP, peerPort))     # SUCCESS
                 
 

@@ -14,16 +14,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--m-ip", required=True, type=str)        # IP not sanitized
 parser.add_argument("--group", required=True, type=int)
 parser.add_argument("--m-port", required=True, type=int)
+parser.add_argument("--p-ip", required=True, type=str)
 parser.add_argument("--p-port", type=int)
 
 args = parser.parse_args()
 
 # assign arguments to variables
 mgrIP = args.m_ip
-peerIP = "127.0.0.1"
+peerIP = args.p_ip
 group = args.group
 mgrPort = args.m_port
 peerPort = args.p_port
+peer_mgrPort = 0                # fix this
 
 # packet variables
 commandDict = {}
@@ -41,28 +43,30 @@ selector = selectors.DefaultSelector()
 selector.register(sock, selectors.EVENT_READ)           # register sockets to listen to
 selector.register(sys.stdin, selectors.EVENT_READ)      # register stdin to listen for
 
-
 # bind to valid port
-if peerPort:
+if peerPort is not None:
     if peerPort >= portMin and peerPort <= portMax:
         try:
             sock.bind((peerIP, peerPort))
+            print("successful bind to port %d" % peerPort)
+            print("on %s" %peerIP)
         except:
-            "invalid port"
+            sys.exit("Error: failure to bind")
+    else:
+        sys.exit("Error: please enter a valid port")
 else:
-    for p in range(portMin, portMax):
+    for p in range(portMin, portMax+1):
         try:
+            print("attempting to bind to %d" %p)
             sock.bind((peerIP, p))
-            peerPort = p
-            print("successful bind to port %d" % sock.getsockname)
+            ip, pt = sock.getsockname()
+            if pt >= portMin and pt <= portMax:
+                print("successful bind to port %d" % pt)
+                break           
         except:
-            "failure to bind to port"
+            sys.exit("Error: failure to bind to any port")
 
-#sock.sendto(MESSAGE, (mgrIP, mgrPort))
-print("UDP target IP: %s" % mgrIP)
-print("UDP target port: %d" % mgrPort)
-#print("message: %s" % MESSAGE)
-
+        
 # infinite loop listening to given port incoming messages from peers
 while True:
     events = selector.select()
