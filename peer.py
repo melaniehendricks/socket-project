@@ -8,11 +8,10 @@ import random
 import sys
 import json
 
+# peer.py --m-ip 192.168.1.4 --group 13 --m-port 7501 --p-ip 0.0.0.0
 
 def main():
     parser = argparse.ArgumentParser()
-
-    # peer.py --m-ip 192.168.1.4 --group 13 --m-port 7501 --p-ip 0.0.0.0
 
     # add arguments for manager-ip, group, manager-port
     parser.add_argument("--m-ip", required=True, type=str)        # IP not sanitized
@@ -23,8 +22,9 @@ def main():
 
     args = parser.parse_args()
 
-    # assign arguments to variables
     global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, commandDict, names, sock       # global vars
+    
+    # assign arguments to variables
     mgrIP = args.m_ip
     peerIP = args.p_ip
     group = args.group
@@ -40,7 +40,6 @@ def main():
     portMin = (math.ceil(group/2) * 1000) + 500
     portMax = (math.ceil(group/2) * 1000) + 999
 
-    MESSAGE = b""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     selector = selectors.DefaultSelector()
@@ -52,8 +51,7 @@ def main():
         if peerPort >= portMin and peerPort <= portMax:
             try:
                 sock.bind((peerIP, peerPort))
-                print("successful bind to port %d" % peerPort)
-                print("on %s" %peerIP)
+                print("successful bind to port %d on %s" % (int(peerPort), peerIP))
             except:
                 sys.exit("Error: failure to bind")
         else:
@@ -63,7 +61,7 @@ def main():
             try:
                 print("attempting to bind to %d" %p)
                 sock.bind((peerIP, p))
-                ip, pt = sock.getsockname()
+                _, pt = sock.getsockname()
                 if pt >= portMin and pt <= portMax:
                     print("successful bind to port %d" % pt)
                     peerPort = pt
@@ -85,22 +83,23 @@ def main():
                 msg = sys.stdin.readline()
                 if int(msg) == 1:                                   # register()
                     register()
+                    break
             
             # if socket
             if key.fd == sock.fileno():
                 msg, addr = sockToRead.recvfrom(1024)
-                print(msg)
-                # parse msg
+                #print(msg)
+                # decode msg + convert to Dictionary
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
                 #print(decoded)
                 code = dict["return-code"]
-                if code == "FAILURE":
-                    command = decoded["command"]
-                    reason = decoded["reason"]
-                    if command == "register":
-                        if reason == "name":
-                            register()
+                if code == "FAILURE":     
+                    command = dict["command"]               
+                    reason = dict["reason"]
+                    print("%s failed due to invalid %s. Please try again." %(command,reason))
+                else:
+                    print("%s" %code)
 
 
 def register():
@@ -113,7 +112,7 @@ def register():
     commandDict["p-port"] = peerPort
     names.pop(rand)
     jsonData = json.dumps(commandDict)
-    #print(jsonData)
+    print(jsonData)
     sock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
 main()
