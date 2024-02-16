@@ -7,7 +7,7 @@ import sys          # keyboard input
 import json         # json objects
 import math
 
-# ./manager.py --port 7501 --m-ip 0.0.0.0 --group 13
+# ./manager.py --port 7501 
 
 def main():
     
@@ -20,9 +20,9 @@ def main():
     global responseDict, peerDict, sock, names, ports                           # global vars
 
     # assign arguments to variables
-    mgrIP = args.m_ip
+    mgrIP = "0.0.0.0"
     mgrPort = args.port
-    group = args.group
+    group = 13
     peerDict = {}                                           # store peer-name/state
 
     # packet variables
@@ -75,19 +75,18 @@ def main():
                 #print(decoded)
                 
                 dict = eval(decoded)                                    # convert to dictionary and deconstruct
-                command = dict["command"]
-                peerName = dict["peer-name"]
+                command = dict.get("command")
+                peerName = dict.get("peer-name")
+                pmPort = dict.get("m-port")
 
                 # peer wants to register 
                 if command == "register":
-                    ports = []
-                    #print(items)
-
+                    print(command)
                     if peerName in names:                                   # if name is not unique, FAILURE
-                        failureMsg(command, "name", peerIP, peerPort)
+                        failureMsg(command, "name", peerIP, pmPort)
                         break
                     if peerPort in ports:                                   # if port is not unique, FAILURE
-                        failureMsg(command, "port", peerIP, peerPort)           
+                        failureMsg(command, "port", peerIP, pmPort)           
                         break
                     else:
                         length = len(names)
@@ -95,20 +94,22 @@ def main():
                         peerDict[length]["peer-name"] = peerName           # create peer element in dictionary
                         peerDict[length]["status"] = 'free'
                         peerDict[length]["p-port"] = peerPort
+                        peerDict[length]["m-port"] = pmPort
                         names.append(peerName)
                         #print(peerDict)
                         responseDict = {"return-code" : "SUCCESS"}
                         jsonData = json.dumps(responseDict)
-                        sock.sendto(jsonData.encode(), (peerIP, peerPort))
+                        sock.sendto(jsonData.encode(), (peerIP, pmPort))
+                        print("response sent to %d" %pmPort)
                         break
 
                 
-def failureMsg(command, reason, peerIP, peerPort):
+def failureMsg(command, reason, peerIP, port):
     responseDict["return-code"] = "FAILURE"
     responseDict["command"] = command
     responseDict["reason"] = reason
     jsonData = json.dumps(responseDict)
-    sock.sendto(jsonData.encode(), (peerIP, peerPort))
+    sock.sendto(jsonData.encode(), (peerIP, port))
 
 
 main()
