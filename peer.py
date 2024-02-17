@@ -9,6 +9,7 @@ import sys
 import json
 
 # peer.py --m-ip 192.168.1.4 --m-port 7501 
+peerName = "peer"
 
 def main():
     parser = argparse.ArgumentParser()
@@ -22,18 +23,15 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, commandDict, names, pSock, mSock       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName       # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
     peerIP = "0.0.0.0"
     group = 13
     mgrPort = args.m_port
-                                               # fix this ---------- sock.connect()
 
     # packet variables
-    commandDict = {}
-    names = ["cousin", "bear", "sugar", "faq", "ayo"]
     
     # bind to ports
     pSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -63,6 +61,9 @@ def main():
                 if int(msg) == 1:                                   # register()
                     register()
                     break
+                if int(msg) == 2:                                   # setup-DHT()
+                    setup_DHT()
+
             
             # if manager socket
             if key.fd == mSock.fileno():
@@ -79,10 +80,13 @@ def main():
                     print("%s failed due to invalid %s. Please try again." %(command,reason))
                 else:
                     print("%s" %code)
-                    print("test")
                     
             # if peer socket
-            #if key.fd == pSock.fileno
+            if key.fd == pSock.fileno():
+                msg, addr = sockToRead.recvfrom(1024)
+                decoded = msg.decode("utf-8")
+                print(decoded)
+
 
 def bindToPorts(group, socket):
     # calc port range based on group
@@ -103,15 +107,32 @@ def bindToPorts(group, socket):
 
 def register():
     # build dictionary to send
-    rand = random.randint(0,len(names) - 1)
+    commandDict = {}
+    rand = random.randint(0,100)
+    global peerName
+    peerName += str(rand)
     commandDict["command"] = "register"
-    commandDict["peer-name"] = names[rand]
+    commandDict["peer-name"] = peerName
     commandDict["IPv4-address"] = peerIP
     commandDict["m-port"] = peer_mgrPort
     commandDict["p-port"] = peerPort
-    names.pop(rand)
     jsonData = json.dumps(commandDict)
-    #print(jsonData)
+    print(jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
+    
+
+
+def setup_DHT():
+    # build dictionary to send
+    commandDict = {}
+    commandDict["command"] = "setupDHT"
+    commandDict["peer-name"] = peerName
+    commandDict["n"] = 3
+    commandDict["YYYY"] = 1950
+    jsonData = json.dumps(commandDict)
+    print(jsonData)
+    pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
+
+
 
 main()

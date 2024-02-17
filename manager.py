@@ -23,12 +23,13 @@ def main():
     mgrIP = "0.0.0.0"
     mgrPort = args.port
     group = 13
-    peerDict = {}                                           # store peer-name/state
+                                           
 
     # packet variables
     responseDict = {}
     names = []
     ports = []
+    peerDict = {}                                           # store peer-name/state
 
     # calc port range based on group
     portMin = (math.ceil(group/2) * 1000) + 500
@@ -92,7 +93,7 @@ def main():
                         length = len(names)
                         peerDict[length] = {}
                         peerDict[length]["peer-name"] = peerName           # create peer element in dictionary
-                        peerDict[length]["status"] = 'free'
+                        peerDict[length]["state"] = 'free'
                         peerDict[length]["p-port"] = peerPort
                         peerDict[length]["m-port"] = pmPort
                         names.append(peerName)
