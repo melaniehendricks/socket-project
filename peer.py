@@ -75,9 +75,7 @@ def main():
                 #print(decoded)
                 code = dict["return-code"]
                 if code == "FAILURE":     
-                    command = dict["command"]               
-                    reason = dict["reason"]
-                    print("%s failed due to invalid %s. Please try again." %(command,reason))
+                    parseFailureResponse()
                 else:
                     print("%s" %code)
                     
@@ -133,6 +131,10 @@ def setup_DHT():
     print(jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
+def parseFailureResponse():
+    command = dict["command"]               
+    reason = dict["reason"]
+    print("%s failed due to invalid %s. Please try again." %(command,reason))
 
 
 main()

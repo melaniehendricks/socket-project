@@ -23,6 +23,7 @@ def main():
     mgrIP = "0.0.0.0"
     mgrPort = args.port
     group = 13
+    DHT_flag = False
                                            
 
     # packet variables
@@ -90,19 +91,21 @@ def main():
                         failureMsg(command, "port", peerIP, pmPort)           
                         break
                     else:
-                        length = len(names)
-                        peerDict[length] = {}
-                        peerDict[length]["peer-name"] = peerName           # create peer element in dictionary
-                        peerDict[length]["state"] = 'free'
-                        peerDict[length]["p-port"] = peerPort
-                        peerDict[length]["m-port"] = pmPort
-                        names.append(peerName)
-                        #print(peerDict)
-                        responseDict = {"return-code" : "SUCCESS"}
-                        jsonData = json.dumps(responseDict)
-                        sock.sendto(jsonData.encode(), (peerIP, pmPort))
-                        print("response sent to %d" %pmPort)
+                        createPeer(peerName, peerPort, pmPort, peerIP)
                         break
+                # peer wants to setup DHT
+                if command == "setupDHT":
+                    n = dict.get("n")
+                    if n < 3:
+                        failureMsg(command, "n is too small", peerIP, peerPort)
+                    if peerName not in names:
+                        failureMsg(command, "name not registered", peerIP, peerPort)
+                    if len(names) < 3:
+                        failureMsg(command, "not enough peers registered", peerIP, peerPort)
+                    if DHT_flag:
+                        failureMsg(command, "DHT already exists", peerIP, peerPort)
+                    else:
+                        return 0
 
                 
 def failureMsg(command, reason, peerIP, port):
@@ -111,6 +114,20 @@ def failureMsg(command, reason, peerIP, port):
     responseDict["reason"] = reason
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peerIP, port))
+
+def createPeer(name, port, pmPort, IP):
+    length = len(names)
+    peerDict[length] = {}
+    peerDict[length]["peer-name"] = name           # create peer element in dictionary
+    peerDict[length]["state"] = 'free'
+    peerDict[length]["p-port"] = port
+    peerDict[length]["m-port"] = pmPort
+    names.append(name)
+    #print(peerDict)
+    responseDict = {"return-code" : "SUCCESS"}
+    jsonData = json.dumps(responseDict)
+    sock.sendto(jsonData.encode(), (IP, pmPort))
+    print("response: %s" %jsonData)
 
 
 main()
