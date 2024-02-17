@@ -72,10 +72,11 @@ def main():
                 # decode msg + convert to Dictionary
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
-                #print(decoded)
+                #print(dict)
                 code = dict["return-code"]
-                if code == "FAILURE":     
-                    parseFailureResponse()
+                if code == "FAILURE":
+                    print("%s" %code)     
+                    parseFailureResponse(dict)
                 else:
                     print("%s" %code)
                     
@@ -131,10 +132,10 @@ def setup_DHT():
     print(jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
-def parseFailureResponse():
+def parseFailureResponse(dict):
     command = dict["command"]               
     reason = dict["reason"]
-    print("%s failed due to invalid %s. Please try again." %(command,reason))
+    print("%s failed because %s. Please try again." %(command,reason))
 
 
 main()
