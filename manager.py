@@ -13,8 +13,8 @@ def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True, type=int)
-    parser.add_argument("--m-ip", required=True, type=str)
-    parser.add_argument("--group", required=True, type=int)
+    #parser.add_argument("--m-ip", required=True, type=str)
+    #parser.add_argument("--group", required=True, type=int)
     args = parser.parse_args()
 
     global responseDict, peerDict, sock, names, ports, DHTdict                           # global vars
@@ -78,7 +78,7 @@ def main():
                 #print(decoded)
                 
                 dict = eval(decoded)                                    # convert to dictionary and deconstruct
-                print("received: %s" %dict)
+                print("received: %s\n" %dict)
                 command = dict.get("command")
                 peerName = dict.get("peer-name")
 
@@ -143,32 +143,34 @@ def getPeer(name):
             return peerDict[i]
 
 def setupDHT(peer, n, command):
-    # select n-1 free users 
-    # update users "state" = inDHT
-    # return-code = SUCCESS + 
-    # Dict of peers (n 3-tuples) to leader
     DHTdict["return-code"] = "SUCCESS"
     DHTdict["command"] = command
     peerCount = 0                                      # add leader to DHTdict
-    DHTdict[peerCount] = {}
+
+    for i in range(0, n):
+        DHTdict[i] = {}
+        
     peer["state"] = "leader"                          # change state to "leader"
     index = "peer" + str(peerCount)
     DHTdict[peerCount]["peer"] = index
     DHTdict[peerCount]["IP"] = peer["IP"]
     DHTdict[peerCount]["p-port"] = peer["p-port"]
     #print(peerDict)
-    for i in range(1,n):                            # add other peers to DHTdict
-        peerCount += 1
-        if peerDict[i].get("state") == "free":      
-            IP = peerDict[i].get("IP")              # get IP
-            pPort = peerDict[i].get("p-port")       # get peer port
-            peerDict[i]["state"] = "inDHT"          # change state to "inDHT"
-            DHTdict[i] = {}
-            index = "peer" + str(peerCount)
-            DHTdict[i]["peer"] = index
-            DHTdict[i]["IP"] = IP
-            DHTdict[i]["p-port"] = pPort
-    print(peerDict)
+    while peerCount < n-1:
+        for i in range(0,n):                            # add other peers to DHTdict
+            if peerDict[i].get("state") == "free":      
+                peerCount += 1
+                IP = peerDict[i].get("IP")              # get IP
+                pPort = peerDict[i].get("p-port")       # get peer port
+                peerDict[i]["state"] = "inDHT"          # change state to "inDHT"
+                index = "peer" + str(peerCount)
+                DHTdict[peerCount] = {}
+                DHTdict[peerCount]["peer"] = index
+                DHTdict[peerCount]["IP"] = IP
+                DHTdict[peerCount]["p-port"] = pPort
+            else:
+                continue
+    DHTdict["n"] = n
     jsonData = json.dumps(DHTdict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)

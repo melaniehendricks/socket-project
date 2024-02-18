@@ -14,16 +14,13 @@ peerName = "peer"
 def main():
     parser = argparse.ArgumentParser()
 
-    # add arguments for manager-ip, group, manager-port
     parser.add_argument("--m-ip", required=True, type=str)        # IP not sanitized
-    #parser.add_argument("--group", required=True, type=int)
     parser.add_argument("--m-port", required=True, type=int)
-    #parser.add_argument("--p-ip", required=True, type=str)
-    parser.add_argument("--p-port", type=int)
+    #parser.add_argument("--p-port", type=int)
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor       # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -73,23 +70,33 @@ def main():
                 # decode msg + convert to Dictionary
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
-                print(dict)
+                #print(dict)
                 code = dict["return-code"]
                 if code == "FAILURE":                               # failure 
-                    print("%s" %code)     
+                    print("received: %s\n" %code)     
                     parseFailureResponse(dict)
                 else:                                               # success
                     command = dict["command"]
                     if command == "register":
-                        print("%s" %code)   
+                        print("received: %s\n" %code)   
                     if command == "setupDHT":
-                        print(dict)
+                        print("received: %s\n" %code)
+                        DHTp2p(dict)
                     
             # if peer socket
             if key.fd == pSock.fileno():
                 msg, addr = sockToRead.recvfrom(1024)
                 decoded = msg.decode("utf-8")
-                print(decoded)
+                dict = eval(decoded)
+                command = dict["command"]
+                print("command received: %s" %command)
+                if command == "set-id":                             # set-id()
+                    global id
+                    id = dict.get("id")
+                    print("id: %d\n" %id)    
+                    if id != 0:
+                        setId(dict, id)
+
 
 
 # ============= HELPER METHODS ==========================
@@ -127,8 +134,7 @@ def register():
     commandDict["m-port"] = peer_mgrPort
     commandDict["p-port"] = peerPort
     jsonData = json.dumps(commandDict)
-    print(jsonData)
-    print("\n")
+    print("sent: %s\n" %jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     
 
@@ -140,13 +146,73 @@ def setup_DHT():
     commandDict["n"] = 3
     commandDict["YYYY"] = 1950
     jsonData = json.dumps(commandDict)
-    print(jsonData)
-    print("\n")
+    print("sent: %s" %jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
 
-def DHTp2p():
+def DHTp2p(dict):
+    # pop items and begin ring setup
+    dict.pop("return-code")
+    dict.pop("command")
+    global id
+    id = 0
+    setId(dict, id)
+    
 
+
+def setId(dict, id):
+    nextId = id+1
+    global ringSize
+    ringSize = dict.get("n")
+    global rNeighbor
+    commandDict = {}
+    rNeighbor = []
+    peers = {}
+    index = 0
+    
+    for item in dict:                                       # get peers
+        if item.isdigit():
+            peers[index] = {}
+            peer = dict.get(item)
+            peers[index] = peer
+            #print(peer)
+            index += 1
+
+    i = 0 
+    for peer in peers.values():
+        if id == ringSize-1:                                #  caboose
+            if i == 0:    
+                print(peer)
+                # change nextId to leader      
+                nextId = 0
+                commandDict["id"] = nextId
+                IP = peer["IP"]
+                port = peer["p-port"]
+                rNeighbor.append(IP)
+                rNeighbor.append(port)
+                break
+        if i == nextId:                                  # leader + others
+            print(peer)
+            commandDict["id"] = nextId
+            IP = peer.get("IP")
+            port = peer.get("p-port")
+            rNeighbor.append(IP)
+            rNeighbor.append(port)
+            break
+        i += 1
+
+    print("right neighbor: %s\n" %rNeighbor)
+    
+    # build commandDict, update it with peers
+    commandDict["command"] = "set-id"
+    commandDict["n"] = ringSize
+    commandDict.update(peers)                                
+    jsonData = json.dumps(commandDict)
+    print("sent: %s" %jsonData)
+    print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
+    pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
+
+    
 
 
 main()
