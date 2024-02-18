@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--group", required=True, type=int)
     args = parser.parse_args()
 
-    global responseDict, peerDict, sock, names, ports                           # global vars
+    global responseDict, peerDict, sock, names, ports, DHTdict                           # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
@@ -31,6 +31,7 @@ def main():
     names = []
     ports = []
     peerDict = {}                                           # store peer-name/state
+    DHTdict = {}
 
     # calc port range based on group
     portMin = (math.ceil(group/2) * 1000) + 500
@@ -92,7 +93,7 @@ def main():
                         failureMsg(command, "port", peerIP, pmPort)           
                         break
                     else:
-                        createPeer(peerName, peerPort, pmPort, peerIP)
+                        createPeer(peerName, peerPort, pmPort, peerIP, command)
                         break
                 # peer wants to setup DHT
                 if command == "setupDHT":
@@ -106,9 +107,11 @@ def main():
                         failureMsg(command, "not enough peers registered", peerIP, peer["m-port"])
                     if DHT_flag:
                         failureMsg(command, "DHT already exists", peerIP, peer["m-port"])
-                    
+                    else:
+                        setupDHT(peer, n, command)
+                        
 
-
+# ============= HELPER METHODS ==========================
                 
 def failureMsg(command, reason, peerIP, port):
     responseDict["return-code"] = "FAILURE"
@@ -116,26 +119,60 @@ def failureMsg(command, reason, peerIP, port):
     responseDict["reason"] = reason
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peerIP, port))
-    print("response: %s" %jsonData)
+    print("response: %s\n" %jsonData)
 
-def createPeer(name, port, pmPort, IP):
+def createPeer(name, port, pmPort, IP, command):
     length = len(names)
     peerDict[length] = {}
     peerDict[length]["peer-name"] = name           # create peer element in dictionary
     peerDict[length]["state"] = 'free'
     peerDict[length]["p-port"] = port
     peerDict[length]["m-port"] = pmPort
+    peerDict[length]["IP"] = IP
     names.append(name)
     #print(peerDict)
-    responseDict = {"return-code" : "SUCCESS"}
+    responseDict = {"return-code" : "SUCCESS", "command": command}
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (IP, pmPort))
     print("response: %s" %jsonData)
-    print("sent to port %d" %pmPort)
+    print("sent to port %d\n" %pmPort)
 
 def getPeer(name):
     for i in range(0, len(peerDict)):
         if peerDict[i].get("peer-name") == name:
             return peerDict[i]
+
+def setupDHT(peer, n, command):
+    # select n-1 free users 
+    # update users "state" = inDHT
+    # return-code = SUCCESS + 
+    # Dict of peers (n 3-tuples) to leader
+    DHTdict["return-code"] = "SUCCESS"
+    DHTdict["command"] = command
+    peerCount = 0                                      # add leader to DHTdict
+    DHTdict[peerCount] = {}
+    peer["state"] = "leader"                          # change state to "leader"
+    index = "peer" + str(peerCount)
+    DHTdict[peerCount]["peer"] = index
+    DHTdict[peerCount]["IP"] = peer["IP"]
+    DHTdict[peerCount]["p-port"] = peer["p-port"]
+    #print(peerDict)
+    for i in range(1,n):                            # add other peers to DHTdict
+        peerCount += 1
+        if peerDict[i].get("state") == "free":      
+            IP = peerDict[i].get("IP")              # get IP
+            pPort = peerDict[i].get("p-port")       # get peer port
+            peerDict[i]["state"] = "inDHT"          # change state to "inDHT"
+            DHTdict[i] = {}
+            index = "peer" + str(peerCount)
+            DHTdict[i]["peer"] = index
+            DHTdict[i]["IP"] = IP
+            DHTdict[i]["p-port"] = pPort
+    print(peerDict)
+    jsonData = json.dumps(DHTdict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+    print("response: %s" %jsonData)
+    print("sent to port %d\n" %peer["m-port"])
+
 
 main()

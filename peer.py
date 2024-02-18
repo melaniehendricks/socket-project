@@ -30,6 +30,7 @@ def main():
     peerIP = "0.0.0.0"
     group = 13
     mgrPort = args.m_port
+    DHTflag = False
 
     # packet variables
     
@@ -72,13 +73,17 @@ def main():
                 # decode msg + convert to Dictionary
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
-                #print(dict)
+                print(dict)
                 code = dict["return-code"]
-                if code == "FAILURE":
+                if code == "FAILURE":                               # failure 
                     print("%s" %code)     
                     parseFailureResponse(dict)
-                else:
-                    print("%s" %code)
+                else:                                               # success
+                    command = dict["command"]
+                    if command == "register":
+                        print("%s" %code)   
+                    if command == "setupDHT":
+                        print(dict)
                     
             # if peer socket
             if key.fd == pSock.fileno():
@@ -86,6 +91,8 @@ def main():
                 decoded = msg.decode("utf-8")
                 print(decoded)
 
+
+# ============= HELPER METHODS ==========================
 
 def bindToPorts(group, socket):
     # calc port range based on group
@@ -97,12 +104,16 @@ def bindToPorts(group, socket):
     socket.bind((peerIP, port))
     didBind = socket.fileno()
     if didBind > -1:
-        print("successful bind to port %d" %port)
+        print("successful bind to port %d\n" %port)
     else:
         print("failure to bind to any port")
     return port
 
 
+def parseFailureResponse(dict):
+    command = dict["command"]               
+    reason = dict["reason"]
+    print("%s failed because %s. Please try again.\n" %(command,reason))
 
 def register():
     # build dictionary to send
@@ -117,9 +128,9 @@ def register():
     commandDict["p-port"] = peerPort
     jsonData = json.dumps(commandDict)
     print(jsonData)
+    print("\n")
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     
-
 
 def setup_DHT():
     # build dictionary to send
@@ -130,12 +141,12 @@ def setup_DHT():
     commandDict["YYYY"] = 1950
     jsonData = json.dumps(commandDict)
     print(jsonData)
+    print("\n")
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
-def parseFailureResponse(dict):
-    command = dict["command"]               
-    reason = dict["reason"]
-    print("%s failed because %s. Please try again." %(command,reason))
+
+def DHTp2p():
+
 
 
 main()
