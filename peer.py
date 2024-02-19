@@ -7,6 +7,7 @@ import math         # for math library
 import random
 import sys
 import json
+import csv
 
 # peer.py --m-ip 192.168.1.4 --m-port 7501 
 peerName = "peer"
@@ -20,7 +21,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor, YYYY       # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -28,6 +29,7 @@ def main():
     group = 13
     mgrPort = args.m_port
     DHTflag = False
+    YYYY = 1950
 
     # packet variables
     
@@ -61,6 +63,9 @@ def main():
                     break
                 if int(msg) == 2:                                   # setup-DHT()
                     setup_DHT()
+                if int(msg) == 3:                                   # constructDHTs()
+                    constructDHTs()
+
 
             
             # if manager socket
@@ -89,12 +94,14 @@ def main():
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
                 command = dict["command"]
-                print("command received: %s" %command)
                 if command == "set-id":                             # set-id()
                     global id
                     id = dict.get("id")
-                    print("id: %d\n" %id)    
+                    if id == 0:
+                        print("logical ring setup complete")
                     if id != 0:
+                        print("command received: %s" %command)
+                        print("id: %d\n" %id)    
                         setId(dict, id)
 
 
@@ -144,7 +151,7 @@ def setup_DHT():
     commandDict["command"] = "setupDHT"
     commandDict["peer-name"] = peerName
     commandDict["n"] = 3
-    commandDict["YYYY"] = 1950
+    commandDict["YYYY"] = YYYY                                          # don't hardcode this for final submission
     jsonData = json.dumps(commandDict)
     print("sent: %s" %jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
@@ -175,12 +182,11 @@ def setId(dict, id):
             peers[index] = {}
             peer = dict.get(item)
             peers[index] = peer
-            #print(peer)
             index += 1
 
     i = 0 
     for peer in peers.values():
-        if id == ringSize-1:                                #  caboose
+        if id == ringSize-1:                                #  peer n-1
             if i == 0:    
                 print(peer)
                 # change nextId to leader      
@@ -191,7 +197,7 @@ def setId(dict, id):
                 rNeighbor.append(IP)
                 rNeighbor.append(port)
                 break
-        if i == nextId:                                  # leader + others
+        if i == nextId:                                  # leader + other peers
             print(peer)
             commandDict["id"] = nextId
             IP = peer.get("IP")
@@ -213,6 +219,51 @@ def setId(dict, id):
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
     
+def constructDHTs():
+    fileName = "data/details-" + str(YYYY) + ".csv"
+    rows = []
+    with open(fileName, 'r') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',')
+        # returns current row (1st row)
+        fields = next(reader)
+        
+        for row in reader:                                      # extract data
+            rows.append(row)
+        l = reader.line_num - 1
+
+        print(l)
+        s = 2*l + 1
+        prime = isPrime(s)                                      # find next prime after 2*l
+
+        while prime == False:
+            s += 1
+            prime = isPrime(s)    
+        print(s)
+
+    for row in rows[:10]:
+        print(row)
+        eventId = int(row[0])
+        pos = eventId % s
+        id = pos % ringSize
+        print(pos)
+        print(id)
+        
+        
+        print('\n')
+            
+
+def isPrime(s):
+    if s > 1:
+
+        # iterate from 2 to s / 2
+        for i in range(2, int(s/2)+1):
+
+            # if s is divisible by any # between 2 and s / 2: not prime
+            if (s % i) == 0:
+                return False
+        return True
+    else:
+        return False
 
 
 main()
