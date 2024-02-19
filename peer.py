@@ -103,6 +103,20 @@ def main():
                         print("command received: %s" %command)
                         print("id: %d\n" %id)    
                         setId(dict, id)
+                if command == "store":
+                    eid = dict.get("id")
+                    pos = dict["pos"]
+                    row = dict["event"]
+                    s = dict["table-size"]
+                    if eid == id:
+                        print("stored event locally")
+                        match(pos, row)
+                    else:
+                        print("passing along to neighbor")
+                        store(eid, s, pos, row)
+
+
+
 
 
 
@@ -240,19 +254,18 @@ def constructDHTs():
             prime = isPrime(s)    
         #print(s)
 
-    for row in rows[:10]:
+    for row in rows:
         print(row)
         eventId = int(row[0])
         pos = eventId % s
         eid = pos % ringSize
         print("pos: %d" %pos)
         print("id: %d" %eid)
-        if eid == id:
-            global myDHT
-            myDHT = {}
-            myDHT[pos] = {}
-            myDHT[pos] = row
+        if eid == id:                                               # if id matches peer, store locally
+            print("stored event locally")
+            match(pos, row)
         else:
+            print("passing along to neighbor")
             store(eid, s, pos, row)
         
         
@@ -274,14 +287,21 @@ def isPrime(s):
 
 def store(id, s, pos, row):
     commandDict = {}
+    commandDict["command"] = "store"
     commandDict["id"] = id
     commandDict["table-size"] = s
     commandDict["pos"] = pos
     commandDict["event"] = row
     jsonData = json.dumps(commandDict)
+    print("right neighbor: %s" %rNeighbor)
     print("sent: %s" %jsonData)
-    print(rNeighbor)
     print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
+
+def match(pos, row):
+    global myDHT
+    myDHT = {}
+    myDHT[pos] = {}
+    myDHT[pos] = row
 
 main()
