@@ -21,7 +21,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor, YYYY, myDHT       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor, YYYY, myDHT, records       # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -30,6 +30,7 @@ def main():
     mgrPort = args.m_port
     DHTflag = False
     YYYY = 1950
+    records = 0
 
     # packet variables
     
@@ -65,6 +66,8 @@ def main():
                     setup_DHT()
                 if int(msg) == 3:                                   # constructDHTs()
                     constructDHTs()
+                if int(msg) == 4:                                   # DHTcomplete() 
+                    DHTcomplete()
 
 
             
@@ -86,7 +89,10 @@ def main():
                         print("received: %s\n" %code)   
                     if command == "setupDHT":
                         print("received: %s\n" %code)
+                        print(dict["reason"])
                         DHTp2p(dict)
+                    if command == "DHTcomplete":
+                        print("received: %s" %code)
                     
             # if peer socket
             if key.fd == pSock.fileno():
@@ -151,7 +157,7 @@ def register():
     peerName += str(rand)
     commandDict["command"] = "register"
     commandDict["peer-name"] = peerName
-    commandDict["IPv4-address"] = peerIP
+    commandDict["IPv4-address"] = "192.168.1.4"
     commandDict["m-port"] = peer_mgrPort
     commandDict["p-port"] = peerPort
     jsonData = json.dumps(commandDict)
@@ -202,7 +208,7 @@ def setId(dict, id):
     for peer in peers.values():
         if id == ringSize-1:                                #  peer n-1
             if i == 0:    
-                print(peer)
+                #print(peer)
                 # change nextId to leader      
                 nextId = 0
                 commandDict["id"] = nextId
@@ -212,7 +218,7 @@ def setId(dict, id):
                 rNeighbor.append(port)
                 break
         if i == nextId:                                  # leader + other peers
-            print(peer)
+            #print(peer)
             commandDict["id"] = nextId
             IP = peer.get("IP")
             port = peer.get("p-port")
@@ -221,7 +227,7 @@ def setId(dict, id):
             break
         i += 1
 
-    print("right neighbor: %s\n" %rNeighbor)
+    print("right neighbor: %s\n" %peer)
     
     # build commandDict, update it with peers
     commandDict["command"] = "set-id"
@@ -267,14 +273,12 @@ def constructDHTs():
         else:
             print("passing along to neighbor")
             store(eid, s, pos, row)
-        
-        
         print('\n')
             
 
 def isPrime(s):
     if s > 1:
-        # iterate from 2 to s / 2
+        # iterate from 2 to s / 2 ================= change to sqrt??
         for i in range(2, int(s/2)+1):
 
             # if s is divisible by any # between 2 and s / 2: not prime
@@ -303,5 +307,18 @@ def match(pos, row):
     myDHT = {}
     myDHT[pos] = {}
     myDHT[pos] = row
+    global records
+    records += 1
+    print("num records: %d" %records)
+
+
+def DHTcomplete():
+    commandDict = {}
+    commandDict["command"] = "DHTcomplete"
+    commandDict["peer-name"] = peerName
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
+    print("sent %s" %jsonData)
+
 
 main()

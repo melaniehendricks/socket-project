@@ -109,6 +109,24 @@ def main():
                         failureMsg(command, "DHT already exists", peerIP, peer["m-port"])
                     else:
                         setupDHT(peer, n, command)
+
+                # peer says DHT complete
+                if command == "DHTcomplete":
+                    peer = getPeer(peerName)
+                    state = peer["state"]
+                    if state != "leader":
+                        failureMsg(command, "peer is not leader", peerIP, peer["m-port"])
+                    else:
+                        commandDict = {}
+                        commandDict["return-code"] = "SUCCESS"
+                        commandDict["command"] = command
+                        jsonData = json.dumps(commandDict)
+                        sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+                        print("response: %s" %jsonData)
+                        print("sent to port %d\n" %peer["m-port"])
+
+
+
                         
 
 # ============= HELPER METHODS ==========================
@@ -151,6 +169,8 @@ def setupDHT(peer, n, command):
         DHTdict[i] = {}
         
     peer["state"] = "leader"                          # change state to "leader"
+    reason = "state of " + peer["peer-name"] + " is set to " + peer["state"]
+    DHTdict["reason"] = reason
     index = "peer" + str(peerCount)
     DHTdict[peerCount]["peer"] = index
     DHTdict[peerCount]["IP"] = peer["IP"]
