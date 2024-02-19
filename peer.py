@@ -21,7 +21,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor, YYYY       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor, YYYY, myDHT       # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -238,15 +238,22 @@ def constructDHTs():
         while prime == False:
             s += 1
             prime = isPrime(s)    
-        print(s)
+        #print(s)
 
     for row in rows[:10]:
         print(row)
         eventId = int(row[0])
         pos = eventId % s
-        id = pos % ringSize
-        print(pos)
-        print(id)
+        eid = pos % ringSize
+        print("pos: %d" %pos)
+        print("id: %d" %eid)
+        if eid == id:
+            global myDHT
+            myDHT = {}
+            myDHT[pos] = {}
+            myDHT[pos] = row
+        else:
+            store(eid, s, pos, row)
         
         
         print('\n')
@@ -254,7 +261,6 @@ def constructDHTs():
 
 def isPrime(s):
     if s > 1:
-
         # iterate from 2 to s / 2
         for i in range(2, int(s/2)+1):
 
@@ -264,6 +270,18 @@ def isPrime(s):
         return True
     else:
         return False
+    
 
+def store(id, s, pos, row):
+    commandDict = {}
+    commandDict["id"] = id
+    commandDict["table-size"] = s
+    commandDict["pos"] = pos
+    commandDict["event"] = row
+    jsonData = json.dumps(commandDict)
+    print("sent: %s" %jsonData)
+    print(rNeighbor)
+    print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
+    pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
 main()
