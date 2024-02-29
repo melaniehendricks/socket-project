@@ -10,7 +10,7 @@ import json
 import csv
 
 # peer.py --m-ip 192.168.1.4 --m-port 7501 
-peerName = "peer"
+#peerName = ""
 
 def main():
     parser = argparse.ArgumentParser()
@@ -57,12 +57,20 @@ def main():
 
             # if keyboard input
             if key.fd == sys.stdin.fileno():
-                #msg = input("")
                 msg = sys.stdin.readline()
                 if int(msg) == 1:                                   # register()
-                    register()
+                    userInput = input("Enter peer name, peer address: \n")
+                    vals = userInput.split(", ")
+                    global peerName
+                    peerName = vals[0]
+                    address = vals[1]
+                    #mport = vals[2]            # !!!!!!!!!!!! are these last 2 necessary since manager port is passed initially and peer port is generated immediately?
+                    #pport = vals[3]
+                    register(address, peer_mgrPort, peerPort)
                     break
                 if int(msg) == 2:                                   # setup-DHT()
+                    #userInput = input("Enter peer name, n, and year (YYYY): \n")
+                    
                     setup_DHT()
                 if int(msg) == 3:                                   # constructDHTs()
                     constructDHTs()
@@ -109,7 +117,7 @@ def main():
                         print("command received: %s" %command)
                         print("id: %d\n" %id)    
                         setId(dict, id)
-                if command == "store":
+                if command == "store":                              # store()
                     eid = dict.get("id")
                     pos = dict["pos"]
                     row = dict["event"]
@@ -149,19 +157,19 @@ def parseFailureResponse(dict):
     reason = dict["reason"]
     print("%s failed because %s. Please try again.\n" %(command,reason))
 
-def register():
+def register(address, mport, pport):
     # build dictionary to send
     commandDict = {}
-    rand = random.randint(0,100)
     global peerName
-    peerName += str(rand)
     commandDict["command"] = "register"
     commandDict["peer-name"] = peerName
-    commandDict["IPv4-address"] = "192.168.1.4"
-    commandDict["m-port"] = peer_mgrPort
-    commandDict["p-port"] = peerPort
+    commandDict["IPv4-address"] = address
+    #commandDict["m-port"] = peer_mgrPort
+    commandDict["m-port"] = mport
+    #commandDict["p-port"] = peerPort
+    commandDict["p-port"] = pport
     jsonData = json.dumps(commandDict)
-    print("sent: %s\n" %jsonData)
+    print("\nsent: %s\n" %jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     
 
@@ -173,7 +181,7 @@ def setup_DHT():
     commandDict["n"] = 3
     commandDict["YYYY"] = YYYY                                          # don't hardcode this for final submission
     jsonData = json.dumps(commandDict)
-    print("sent: %s" %jsonData)
+    print("\nsent: %s" %jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
 
@@ -234,7 +242,7 @@ def setId(dict, id):
     commandDict["n"] = ringSize
     commandDict.update(peers)                                
     jsonData = json.dumps(commandDict)
-    print("sent: %s" %jsonData)
+    print("\nsent: %s" %jsonData)
     print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
@@ -318,7 +326,7 @@ def DHTcomplete():
     commandDict["peer-name"] = peerName
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
-    print("sent %s" %jsonData)
+    print("\nsent %s" %jsonData)
 
 
 main()
