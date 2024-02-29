@@ -99,7 +99,8 @@ def main():
                 # peer wants to setup DHT
                 if command == "setupDHT":
                     peer = getPeer(peerName)
-                    n = dict.get("n")
+                    strN = dict.get("n")
+                    n = int(strN)
                     if n < 3:
                         failureMsg(command, "n is too small", peerIP, peer["m-port"])
                         break
@@ -161,7 +162,7 @@ def createPeer(name, port, pmPort, IP, command):
     responseDict = {"return-code" : "SUCCESS!", "command": command}
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (IP, pmPort))
-    print("response: %s" %jsonData)
+    print("response: %s\n" %jsonData)
     print("sent to %s on port %d\n" %(name, pmPort))
 
 def getPeer(name):
@@ -202,8 +203,8 @@ def setupDHT(peer, n, command):
     DHTdict["n"] = n
     jsonData = json.dumps(DHTdict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
-    print("response: %s" %jsonData)
-    print("sent to port %d\n" %peer["m-port"])
+    print("response: %s\n" %jsonData)
+    print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
 main()

@@ -21,7 +21,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, rNeighbor, YYYY, myDHT, records       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, YYYY, rNeighbor, myDHT, records       # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -29,7 +29,6 @@ def main():
     group = 13
     mgrPort = args.m_port
     DHTflag = False
-    YYYY = 1950
     records = 0
 
     # packet variables
@@ -69,9 +68,12 @@ def main():
                     register(address, peer_mgrPort, peerPort)
                     break
                 if int(msg) == 2:                                   # setup-DHT()
-                    #userInput = input("Enter peer name, n, and year (YYYY): \n")
-                    
-                    setup_DHT()
+                    userInput = input("Enter n and year (YYYY): \n")
+                    vals = userInput.split(", ")
+                    n = vals[0]
+                    global YYYY
+                    YYYY = vals[1]
+                    setup_DHT(n)
                 if int(msg) == 3:                                   # constructDHTs()
                     constructDHTs()
                 if int(msg) == 4:                                   # DHTcomplete() 
@@ -173,13 +175,13 @@ def register(address, mport, pport):
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     
 
-def setup_DHT():
+def setup_DHT(n):
     # build dictionary to send
     commandDict = {}
     commandDict["command"] = "setupDHT"
     commandDict["peer-name"] = peerName
-    commandDict["n"] = 3
-    commandDict["YYYY"] = YYYY                                          # don't hardcode this for final submission
+    commandDict["n"] = n
+    commandDict["YYYY"] = YYYY                                          
     jsonData = json.dumps(commandDict)
     print("\nsent: %s" %jsonData)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
@@ -247,7 +249,7 @@ def setId(dict, id):
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
     
-def constructDHTs():
+def constructDHTs(YYYY):
     fileName = "data/details-" + str(YYYY) + ".csv"
     rows = []
     with open(fileName, 'r') as csvfile:
