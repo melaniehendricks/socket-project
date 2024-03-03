@@ -78,6 +78,8 @@ def main():
                     constructDHTs()
                 if int(msg) == 4:                                   # DHTcomplete() 
                     DHTcomplete()
+                if int(msg) == 5:                                   # queryDHT()
+                    queryDHT()
 
 
             
@@ -249,7 +251,7 @@ def setId(dict, id):
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
     
-def constructDHTs(YYYY):
+def constructDHTs():
     fileName = "data/details-" + str(YYYY) + ".csv"
     rows = []
     with open(fileName, 'r') as csvfile:
@@ -313,13 +315,14 @@ def store(id, s, pos, row):
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
 def match(pos, row):
+    print(row)
     global myDHT
     myDHT = {}
     myDHT[pos] = {}
     myDHT[pos] = row
     global records
     records += 1
-    print("num records: %d" %records)
+    print("num records: %d\n" %records)
 
 
 def DHTcomplete():
@@ -330,5 +333,13 @@ def DHTcomplete():
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     print("\nsent %s" %jsonData)
 
+
+def queryDHT():
+    commandDict = {}
+    commandDict["command"] = "queryDHT"
+    commandDict["peer-name"] = peerName
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
+    print("\nsent %s" %jsonData)
 
 main()

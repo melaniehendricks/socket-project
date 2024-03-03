@@ -6,6 +6,7 @@ import selectors    # selectors module to handle multiple events
 import sys          # keyboard input
 import json         # json objects
 import math
+import random
 
 # ./manager.py --port 7501 
 
@@ -23,7 +24,7 @@ def main():
     mgrIP = "0.0.0.0"
     mgrPort = args.port
     group = 13
-    DHT_flag = False
+    DHT_complete = False
                                            
 
     # packet variables
@@ -98,7 +99,6 @@ def main():
                         break
                 # peer wants to setup DHT
                 if command == "setupDHT":
-                    peer = getPeer(peerName)
                     strN = dict.get("n")
                     n = int(strN)
                     if n < 3:
@@ -110,10 +110,11 @@ def main():
                     if len(names) < 3:
                         failureMsg(command, "not enough peers registered", peerIP, peer["m-port"])
                         break
-                    if DHT_flag:
+                    if DHT_complete:
                         failureMsg(command, "DHT already exists", peerIP, peer["m-port"])
                         break
                     else:
+                        peer = getPeer(peerName)
                         setupDHT(peer, n, command)
                         break
 
@@ -125,14 +126,34 @@ def main():
                         failureMsg(command, "peer is not leader", peerIP, peer["m-port"])
                         break
                     else:
+                        DHT_complete = True
+                        DHTComplete(peer, command)                        
+                        break
+
+                # peer wants to query DHT
+                if command == "queryDHT":
+                    if peerName not in names:
+                        failureMsg(command, "peer not registered", peerIP, peerPort)
+                        break
+                    if DHT_complete == False:
+                        failureMsg(command, "DHT setup not complete", peerIP, peer["m-port"])
+                        break
+                    if state != "Free":
+                        failureMsg(command, "peer is registered but not free", peerIP, peer["m-port"])
+                        break
+                    else:
+                        peer = getPeer(peerName)
+                        print("check state")
+                        print(peer)
+                        state = peer.get("state")
                         commandDict = {}
                         commandDict["return-code"] = "SUCCESS"
                         commandDict["command"] = command
-                        jsonData = json.dumps(commandDict)
-                        sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
-                        print("response: %s" %jsonData)
-                        print("sent to port %d\n" %peer["m-port"])
-                        break
+                        print("success")
+                        rand = random.randint(0, len(names) - 1)
+                        returnPeer = peerDict[rand]
+                        print(returnPeer)
+
 
 
 
@@ -200,10 +221,22 @@ def setupDHT(peer, n, command):
                 DHTdict[peerCount]["p-port"] = pPort
             else:
                 continue
+    print("check peerDict")
+    print(peerDict)
     DHTdict["n"] = n
     jsonData = json.dumps(DHTdict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s\n" %jsonData)
+    print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
+
+
+def DHTComplete(peer, command): 
+    commandDict = {}
+    commandDict["return-code"] = "SUCCESS"
+    commandDict["command"] = command
+    jsonData = json.dumps(commandDict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+    print("response: %s" %jsonData)
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
