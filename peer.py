@@ -127,10 +127,8 @@ def main():
                     row = dict["event"]
                     s = dict["table-size"]
                     if eid == id:
-                        print("stored event locally")
                         match(pos, row)
                     else:
-                        print("passing along to neighbor")
                         store(eid, s, pos, row)
 
 
@@ -220,22 +218,27 @@ def setId(dict, id):
     for peer in peers.values():
         if id == ringSize-1:                                #  peer n-1
             if i == 0:    
-                #print(peer)
+                print("print peer")
+                print(peer)
                 # change nextId to leader      
                 nextId = 0
                 commandDict["id"] = nextId
                 IP = peer["IP"]
                 port = peer["p-port"]
+                name = peer["peer-name"]
                 rNeighbor.append(IP)
                 rNeighbor.append(port)
+                rNeighbor.append(name)
                 break
         if i == nextId:                                  # leader + other peers
             #print(peer)
             commandDict["id"] = nextId
             IP = peer.get("IP")
             port = peer.get("p-port")
+            name = peer["peer-name"]
             rNeighbor.append(IP)
             rNeighbor.append(port)
+            rNeighbor.append(name)
             break
         i += 1
 
@@ -280,10 +283,8 @@ def constructDHTs():
         print("pos: %d" %pos)
         print("id: %d" %eid)
         if eid == id:                                               # if id matches peer, store locally
-            print("stored event locally")
             match(pos, row)
         else:
-            print("passing along to neighbor")
             store(eid, s, pos, row)
         print('\n')
             
@@ -309,12 +310,13 @@ def store(id, s, pos, row):
     commandDict["pos"] = pos
     commandDict["event"] = row
     jsonData = json.dumps(commandDict)
-    print("right neighbor: %s" %rNeighbor)
+    print("passing along to right neighbor: %s\n" %rNeighbor[2])
     print("sent: %s" %jsonData)
     print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
     pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
 
 def match(pos, row):
+    print("stored event locally")
     print(row)
     global myDHT
     myDHT = {}
