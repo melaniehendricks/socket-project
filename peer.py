@@ -10,7 +10,6 @@ import json
 import csv
 
 # peer.py --m-ip 192.168.1.4 --m-port 7501 
-#peerName = ""
 
 def main():
     parser = argparse.ArgumentParser()
@@ -21,7 +20,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, YYYY, rNeighbor, myDHT, records       # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, id, ringSize, YYYY, rNeighbor, myDHT, records, startingPeer      # global vars
     
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -30,6 +29,7 @@ def main():
     mgrPort = args.m_port
     DHTflag = False
     records = 0
+    startingPeer = []
 
     # packet variables
     
@@ -80,6 +80,9 @@ def main():
                     DHTcomplete()
                 if int(msg) == 5:                                   # queryDHT()
                     queryDHT()
+                if int(msg) == 6:                                   # beginQuery()
+                    eventId = input("Enter event ID: \n")
+                    beginQuery(startingPeer, eventId)
 
 
             
@@ -105,6 +108,13 @@ def main():
                         DHTp2p(dict)
                     if command == "DHTcomplete":
                         print("received: %s" %code)
+                    if command == "queryDHT":
+                        print("received: %s\n" %code)
+                        startingPeer.append(dict["peer-name"])
+                        startingPeer.append(dict["IP"])
+                        startingPeer.append(dict["p-port"])
+                        print("starting peer S: %s at %s:%d\n" %(startingPeer[0], startingPeer[1], startingPeer[2]))                        
+                        
                     
             # if peer socket
             if key.fd == pSock.fileno():
@@ -343,5 +353,12 @@ def queryDHT():
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     print("\nsent %s" %jsonData)
+
+
+def beginQuery(peer, eventId):
+    commandDict = {}
+    commandDict["command"] = "findEvent"
+    commandDict["event-id"] = eventId
+    print("begin find event")
 
 main()
