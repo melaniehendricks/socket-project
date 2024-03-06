@@ -150,9 +150,7 @@ def main():
                     findEvent(dict)
                 if command == "foundEvent":                         # foundEvent
                     print("command received: %s\n" %command)
-                    print(fields)
-                    print(dict["event"])
-                    print(dict["id-seq"])
+                    foundEvent(fields, dict["event"], dict["id-seq"])
                     
 
 
@@ -419,9 +417,8 @@ def findEvent(dict):
         if event[0] == eventId:                                 # AND eventId matches
             print("FOUND EVENT!\n")            
             if peerName == returnPeer[0]:                       # if peer == starting peer                
-                print(fields)
-                print(event)
-                print(idSeq + "\n")
+                foundEvent(fields, event, idSeq)
+
             else:                                               # otherwise, send to starting peer
                 print("Sending event to starting peer: %s" %returnPeer)
                 commandDict = {}
@@ -450,6 +447,14 @@ def findEvent(dict):
         jsonData = json.dumps(commandDict)
         pSock.sendto(jsonData.encode(), (nextPeer['IP'], nextPeer['p-port']))
         print("\nsent %s\n" %jsonData)
+
+
+def foundEvent(fields, event, idSeq):
+    labeledEvent = zip(fields, event)
+    for (f,e) in labeledEvent:
+        print("%s: %s" %(f,e))
+    print("======================")
+    print(idSeq)
 
 
 main()
