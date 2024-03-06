@@ -14,8 +14,6 @@ def main():
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", required=True, type=int)
-    #parser.add_argument("--m-ip", required=True, type=str)
-    #parser.add_argument("--group", required=True, type=int)
     args = parser.parse_args()
 
     global peerDict, sock, names, ports                          # global vars
@@ -144,13 +142,9 @@ def main():
                         break
                     else:
                         peer = getPeer(peerName)
-                        queryDHT(peer, command)
+                        queryDHT(peerName, peer, command)
                         
                         
-
-
-
-
 
                         
 
@@ -167,10 +161,9 @@ def failureMsg(command, reason, peerIP, port):
 
 
 def createPeer(name, port, pmPort, IP, command):
-    #pmPort = int(pmPort)
     length = len(names)
     peerDict[length] = {}
-    peerDict[length]["peer-name"] = name           # create peer element in dictionary
+    peerDict[length]["peer-name"] = name                                # create peer element in dictionary
     peerDict[length]["state"] = 'free'
     peerDict[length]["p-port"] = port
     peerDict[length]["m-port"] = pmPort
@@ -194,26 +187,25 @@ def setupDHT(peer, n, command):
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
-    peerCount = 0                                      # add leader to responseDict
+    peerCount = 0                                                       # add leader to responseDict
 
 
     for i in range(0, n):
         responseDict[i] = {}
         
-    peer["state"] = "leader"                          # change state to "leader"
+    peer["state"] = "leader"                                            # change state to "leader"
     reason = "state of " + peer["peer-name"] + " is set to " + peer["state"]
     responseDict["reason"] = reason
     responseDict[peerCount]["peer-name"] = peer["peer-name"]
     responseDict[peerCount]["IP"] = peer["IP"]
     responseDict[peerCount]["p-port"] = peer["p-port"]
     #print(peerDict)
-    for i in range(n):                              # add other peers to responseDict
+    for i in range(n):                                                  # add other peers to responseDict
         if peerDict[i].get("state") == "free" and peerCount < n-1:      
             peerCount += 1
-            IP = peerDict[i].get("IP")              # get IP
-            pPort = peerDict[i].get("p-port")       # get peer port
-            peerDict[i]["state"] = "inDHT"          # change state to "inDHT"
-            #responseDict[peerCount] = {}
+            IP = peerDict[i].get("IP")                                  # get IP
+            pPort = peerDict[i].get("p-port")                           # get peer port
+            peerDict[i]["state"] = "inDHT"                              # change state to "inDHT"
             responseDict[peerCount]["peer-name"] = peerDict[i].get("peer-name")
             responseDict[peerCount]["IP"] = IP
             responseDict[peerCount]["p-port"] = pPort
@@ -238,14 +230,19 @@ def DHTComplete(peer, command):
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
-def queryDHT(peer, command):
+def queryDHT(name, peer, command):
     print("check state")
     print(peer)
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
-    rand = random.randint(0, len(names) - 1)
+
+    rand = random.randint(0, len(names) - 1)                        # find random peer in DHT
     returnPeer = peerDict[rand]
+    while returnPeer["peer-name"] == name:
+        rand = random.randint(0, len(names) - 1)
+        returnPeer = peerDict[rand]
+
     responseDict["peer-name"] = returnPeer["peer-name"]
     responseDict["IP"] = returnPeer["IP"]
     responseDict["p-port"] = returnPeer["p-port"]
