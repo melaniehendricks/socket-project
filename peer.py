@@ -147,13 +147,15 @@ def main():
                 if command == "findEvent":                          # findEvent()
                     print("command received: %s\n" %command)
                     print("from port %d" %addr[1])
-                    findEvent(dict)
+                    code = dict["return-code"]
+                    if code == "FAILURE":                           # failure 
+                        print("received: %s\n" %code)     
+                        parseFailureResponse(dict)
+                    else:
+                        findEvent(dict)
                 if command == "foundEvent":                         # foundEvent
                     print("command received: %s\n" %command)
                     foundEvent(fields, dict["event"], dict["id-seq"])
-                    
-
-
 
 
 
@@ -370,6 +372,7 @@ def beginQuery(peer, eventId):                              # send findEvent() t
     print("starting peer S: %s at %s:%d\n" %(peer[0], peer[1], peer[2]))
     commandDict = {}
     commandDict["command"] = "findEvent"
+    commandDict["return-code"] = "pending"
     commandDict["event-id"] = eventId
     commandDict["S"] = peer
     commandDict["id-seq"] = []
@@ -388,21 +391,11 @@ def findEvent(dict):
     returnPeer = dict["S"]
     eventId = dict["event-id"]
 
-    if len(ids) == 0:
-        if len(idSeq) == ringSize:                              # if no more peers to query
-            commandDict = {}
-            commandDict["return-code"] = "FAILURE"
-            commandDict["command"] = "findEvent"
-            commandDict["reason"] = "Storm event %s not found in the DHT.\n" %eventId
-            jsonData = json.dumps(commandDict)
-            pSock.sendto(jsonData.encode(), returnPeer[1], returnPeer[2])
-            print("\nsent %s\n" %jsonData)
-
-        else:                                                    # if peer == starting peer
-            identifiers = []
-            for i in range(ringSize):
-                identifiers.append(i)
-            ids = identifiers
+    if len(ids) == 0:                                                    # if peer == starting peer
+        identifiers = []
+        for i in range(ringSize):
+            identifiers.append(i)
+        ids = identifiers
     #print("ids: %s" %ids)    
 
     pos = int(eventId) % s
@@ -413,8 +406,11 @@ def findEvent(dict):
 
     if id == eid:                                               # if id matches
         #if myDHT.has_key(pos):
-        event = myDHT.get(pos)        
-        if event[0] == eventId:                                 # AND eventId matches
+        event = myDHT.get(pos)       
+        if event == None:
+            eventNotFound(returnPeer, eventId)
+            return
+        elif event[0] == eventId:                                 # AND eventId matches
             print("FOUND EVENT!\n")            
             if peerName == returnPeer[0]:                       # if peer == starting peer                
                 foundEvent(fields, event, idSeq)
@@ -433,6 +429,12 @@ def findEvent(dict):
 
     else:                                                   # if id does not match: hot potato
         ids.remove(id)                                      # remove peer id from list of remaining identifiers
+
+        if len(ids) == 0:
+            if len(idSeq) == ringSize:                              # if no more peers to query
+                eventNotFound(returnPeer, eventId)
+                return
+
         print("Event not found. HOT POTATO!")
         rand = random.randint(0, len(ids)-1)
         next = ids[rand]
@@ -440,6 +442,7 @@ def findEvent(dict):
         print("Passing to: %s\n" %nextPeer)
         commandDict = {}
         commandDict["command"] = "findEvent"
+        commandDict["return-code"] = "pending"
         commandDict["event-id"] = eventId
         commandDict["S"] = returnPeer
         commandDict["id-seq"] = idSeq
@@ -456,5 +459,18 @@ def foundEvent(fields, event, idSeq):
     print("======================")
     print(idSeq)
 
+
+def eventNotFound(returnPeer, eventId):
+    if returnPeer[0] == peerName:
+        print("queryDHT failed because storm event %s could not be found in the DHT. Please try again." %eventId)
+        return
+    else:
+        commandDict = {}
+        commandDict["return-code"] = "FAILURE"
+        commandDict["command"] = "queryDHT"
+        commandDict["reason"] = "storm event %s could not be found in the DHT." %eventId
+        jsonData = json.dumps(commandDict)
+        pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
+        print("\nsent %s\n" %jsonData)
 
 main()
