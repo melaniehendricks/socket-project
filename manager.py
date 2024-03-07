@@ -71,6 +71,7 @@ def main():
             
             # if socket
             if key.fd == sock.fileno():
+                divider()
                 msg, addr = sockToRead.recvfrom(1024)
                 decoded = msg.decode('utf-8')
                 peerIP, peerPort = addr
@@ -161,7 +162,9 @@ def main():
                         
 
 # ============= HELPER METHODS ==========================
-                
+def divider():
+    print("============================================================")
+
 def failureMsg(command, reason, peerIP, port):
     responseDict = {}
     responseDict["return-code"] = "FAILURE"

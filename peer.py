@@ -60,6 +60,7 @@ def main():
 
             # if keyboard input
             if key.fd == sys.stdin.fileno():
+                divider()
                 msg = sys.stdin.readline()
                 if int(msg) == 1:                                       # register()
                     userInput = input("Enter peer name, peer address: \n")
@@ -95,6 +96,7 @@ def main():
             
             # if manager socket
             if key.fd == mSock.fileno():
+                divider()
                 msg, addr = sockToRead.recvfrom(1024)
                 #print(msg)
                 # decode msg + convert to Dictionary
@@ -126,6 +128,7 @@ def main():
                     
             # if peer socket
             if key.fd == pSock.fileno():
+                divider()
                 msg, addr = sockToRead.recvfrom(1024)
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
@@ -186,6 +189,10 @@ def parseFailureResponse(dict):                                          # failu
     command = dict["command"]               
     reason = dict["reason"]
     print("%s failed because %s. Please try again.\n" %(command,reason))
+
+
+def divider():
+    print("============================================================")
 
 def register(address, mport, pport):
     # build dictionary to send
@@ -428,6 +435,9 @@ def findEvent(dict):
                 jsonData = json.dumps(commandDict)
                 pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
                 print("\nsent %s\n" %jsonData)
+                print("to %s at %d" % (returnPeer[1], returnPeer[2]))
+        else:
+            hotPotato(ids, eventId, returnPeer, idSeq)
                 
     else:                                                                               # if id does not match: hot potato     
         print("id != eid")
