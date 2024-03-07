@@ -61,7 +61,7 @@ def main():
             # if keyboard input
             if key.fd == sys.stdin.fileno():
                 msg = sys.stdin.readline()
-                if int(msg) == 1:                                   # register()
+                if int(msg) == 1:                                       # register()
                     userInput = input("Enter peer name, peer address: \n")
                     vals = userInput.split(", ")
                     global peerName
@@ -71,23 +71,23 @@ def main():
                     #pport = vals[3]
                     register(address, peer_mgrPort, peerPort)
                     break
-                if int(msg) == 2:                                   # setup-DHT()
+                if int(msg) == 2:                                       # setup-DHT()
                     userInput = input("Enter n and year (YYYY): \n")
                     vals = userInput.split(", ")
                     n = vals[0]
                     global YYYY
                     YYYY = vals[1]
                     setup_DHT(n)
-                if int(msg) == 3:                                   # constructDHTs()
+                if int(msg) == 3:                                       # constructDHTs()
                     constructDHTs()
-                if int(msg) == 4:                                   # DHTcomplete() 
+                if int(msg) == 4:                                       # DHTcomplete() 
                     DHTcomplete()
-                if int(msg) == 5:                                   # queryDHT()
+                if int(msg) == 5:                                       # queryDHT()
                     queryDHT()
-                if int(msg) == 6:                                   # beginQuery()
+                if int(msg) == 6:                                       # beginQuery()
                     eventId = input("Enter event ID: \n")
                     beginQuery(startingPeer, eventId)
-                if int(msg) == 7:                                   # leaveDHT()
+                if int(msg) == 7:                                       # leaveDHT()
                     leaveDHT()
 
 
@@ -102,10 +102,10 @@ def main():
                 dict = eval(decoded)
                 #print(dict)
                 code = dict["return-code"]
-                if code == "FAILURE":                               # failure 
+                if code == "FAILURE":                                   # failure 
                     print("received: %s\n" %code)     
                     parseFailureResponse(dict)
-                else:                                               # success
+                else:                                                   # success
                     command = dict["command"]
                     if command == "register":
                         print("received: %s\n" %code)   
@@ -130,7 +130,7 @@ def main():
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
                 command = dict["command"]
-                if command == "set-id":                             # set-id()
+                if command == "set-id":                                 # set-id()
                     global id
                     id = dict.get("id")
                     if id == 0:
@@ -139,7 +139,7 @@ def main():
                         print("command received: %s\n" %command)
                         print("id: %d\n" %id)    
                         setId(dict, id, dict["n"])
-                if command == "store":                              # store()
+                if command == "store":                                  # store()
                     eid = dict.get("id")
                     pos = dict["pos"]
                     row = dict["event"]
@@ -149,16 +149,16 @@ def main():
                         match(pos, row, header)
                     else:
                         store(eid, s, pos, row, header)
-                if command == "findEvent":                          # findEvent()
+                if command == "findEvent":                              # findEvent()
                     print("command received: %s\n" %command)
                     print("from port %d" %addr[1])
                     code = dict["return-code"]
-                    if code == "FAILURE":                           # failure 
+                    if code == "FAILURE":                               # failure 
                         print("received: %s\n" %code)     
                         parseFailureResponse(dict)
                     else:
                         findEvent(dict)
-                if command == "foundEvent":                         # foundEvent
+                if command == "foundEvent":                             # foundEvent
                     print("command received: %s\n" %command)
                     foundEvent(fields, dict["event"], dict["id-seq"])
 
@@ -167,8 +167,7 @@ def main():
 
 # ============= HELPER METHODS ==========================
 
-def bindToPorts(group, socket):
-    # calc port range based on group
+def bindToPorts(group, socket):                                         # calc port range based on group
     portMin = (math.ceil(group/2) * 1000) + 500
     portMax = (math.ceil(group/2) * 1000) + 999
 
@@ -182,8 +181,8 @@ def bindToPorts(group, socket):
         print("failure to bind to any port")
     return port
 
-# failure + reason why
-def parseFailureResponse(dict):
+
+def parseFailureResponse(dict):                                          # failure + reason why
     command = dict["command"]               
     reason = dict["reason"]
     print("%s failed because %s. Please try again.\n" %(command,reason))
@@ -214,8 +213,7 @@ def setup_DHT(n):
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
 
 
-def DHTp2p(dict):
-    # pop items and begin ring setup
+def DHTp2p(dict):                                                      # pop items and begin ring setup
     dict.pop("return-code")
     dict.pop("command")
     global id
@@ -257,7 +255,7 @@ def setId(dict, id, n):
                 rNeighbor.append(port)
                 rNeighbor.append(name)
                 break
-        if i == nextId:                                  # leader + other peers
+        if i == nextId:                                     # leader + other peers
             #print(peer)
             commandDict["id"] = nextId
             IP = peer.get("IP")
@@ -270,10 +268,8 @@ def setId(dict, id, n):
         i += 1
 
     print("right neighbor: %s\n" %peer)
-    #print("peers: %s" %peers)
     
-    # build commandDict, update it with peers
-    commandDict["command"] = "set-id"
+    commandDict["command"] = "set-id"                       # build commandDict, update it with peers
     commandDict["n"] = ringSize
     commandDict.update(peers)                                
     jsonData = json.dumps(commandDict)
@@ -287,8 +283,7 @@ def constructDHTs():
     rows = []
     with open(fileName, 'r') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
-        # returns current row (1st row)
-        fields = next(reader)
+        fields = next(reader)                                   # returns current row (fields)
         
         for row in reader:                                      # extract data
             rows.append(row)
@@ -309,10 +304,10 @@ def constructDHTs():
         eventId = int(row[0])
         pos = eventId % s
         eid = pos % ringSize
-        if eid == id:                                               # if id matches peer, store locally
+        if eid == id:                                           # if id matches peer, store locally
             match(pos, row, fields)
         else:
-            store(eid, s, pos, row, fields)                                 # else, pass to right neighbor
+            store(eid, s, pos, row, fields)                     # else, pass to right neighbor
         print('\n')
             
 
@@ -397,73 +392,81 @@ def findEvent(dict):
     returnPeer = dict["S"]
     eventId = dict["event-id"]
 
-    if len(ids) == 0:                                                    # if peer == starting peer
+    if len(ids) == 0:                                                                   # if peer == starting peer
         identifiers = []
         for i in range(ringSize):
             identifiers.append(i)
         ids = identifiers
     #print("ids: %s" %ids)    
 
+    ids.remove(id)
     pos = int(eventId) % s
     print("Looking for: %s\n" %eventId)
     #print("position: %d" %pos)
     eid = pos % ringSize
     idSeq.append(str(id) + ":" + peerName)
 
-    if id == eid:                                               # if id matches
-        #if myDHT.has_key(pos):
+    if id == eid:                                                                       # if id matches      
+        print("id == eid")  
         event = myDHT.get(pos)       
-        if event == None:
-            eventNotFound(returnPeer, eventId)
-            return
-        elif event[0] == eventId:                                 # AND eventId matches
+        if event == None:                                                               # but no event, hot potato
+            print("no event")
+            hotPotato(ids, eventId, returnPeer, idSeq)
+
+        elif event[0] == eventId:                                                       # AND eventId matches
             print("FOUND EVENT!\n")            
-            if peerName == returnPeer[0]:                       # if peer == starting peer                
+            if peerName == returnPeer[0]:                                               # if peer == starting peer                
                 foundEvent(fields, event, idSeq)
 
-            else:                                               # otherwise, send to starting peer
+            else:                                                                       # otherwise, send to starting peer
                 print("Sending event to starting peer: %s" %returnPeer)
                 commandDict = {}
-                commandDict["return-code"] = "SUCCESS"          # return SUCCESS
+                commandDict["return-code"] = "SUCCESS"                                  # return SUCCESS
                 commandDict["command"] = "foundEvent"
-                commandDict["event"] = event                    # + event
-                commandDict["id-seq"] = idSeq                   # + id sequence
+                commandDict["event"] = event                                            # + event
+                commandDict["id-seq"] = idSeq                                           # + id sequence
                 jsonData = json.dumps(commandDict)
                 pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
                 print("\nsent %s\n" %jsonData)
                 
-
-    else:                                                   # if id does not match: hot potato
-        ids.remove(id)                                      # remove peer id from list of remaining identifiers
-
+    else:                                                                               # if id does not match: hot potato     
+        print("id != eid")
         if len(ids) == 0:
-            if len(idSeq) == ringSize:                              # if no more peers to query
+            if len(idSeq) == ringSize:                                                  # if no more peers to query
+                print("no more peers")
                 eventNotFound(returnPeer, eventId)
                 return
+        hotPotato(ids, eventId, returnPeer, idSeq)
 
-        print("Event not found. HOT POTATO!")
-        rand = random.randint(0, len(ids)-1)
-        next = ids[rand]
-        nextPeer = peers[next]
-        print("Passing to: %s\n" %nextPeer)
-        commandDict = {}
-        commandDict["command"] = "findEvent"
-        commandDict["return-code"] = "pending"
-        commandDict["event-id"] = eventId
-        commandDict["S"] = returnPeer
-        commandDict["id-seq"] = idSeq
-        commandDict["I"] = ids
-        jsonData = json.dumps(commandDict)
-        pSock.sendto(jsonData.encode(), (nextPeer['IP'], nextPeer['p-port']))
-        print("\nsent %s\n" %jsonData)
+
+def hotPotato(ids, eventId, returnPeer, idSeq):
+    print("Event not found. HOT POTATO!")
+
+    rand = random.randint(0, len(ids)-1)
+    next = ids[rand]                                                                    # choose who to pass eventId to
+    nextPeer = peers[next]
+    print("Passing to: %s\n" %nextPeer)
+
+    commandDict = {}
+    commandDict["command"] = "findEvent"
+    commandDict["return-code"] = "pending"
+    commandDict["event-id"] = eventId
+    commandDict["S"] = returnPeer
+    commandDict["id-seq"] = idSeq
+    commandDict["I"] = ids
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (nextPeer['IP'], nextPeer['p-port']))
+    print("\nsent %s\n" %jsonData)
+    print("to %s at %d" % (nextPeer["peer-name"],nextPeer["p-port"]))
 
 
 def foundEvent(fields, event, idSeq):
     labeledEvent = zip(fields, event)
     for (f,e) in labeledEvent:
         print("%s: %s" %(f,e))
-    print("======================")
+    print("=====================================")
     print(idSeq)
+    print("")
 
 
 def eventNotFound(returnPeer, eventId):
@@ -473,11 +476,12 @@ def eventNotFound(returnPeer, eventId):
     else:
         commandDict = {}
         commandDict["return-code"] = "FAILURE"
-        commandDict["command"] = "queryDHT"
+        commandDict["command"] = "findEvent"
         commandDict["reason"] = "storm event %s could not be found in the DHT." %eventId
         jsonData = json.dumps(commandDict)
         pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
         print("\nsent %s\n" %jsonData)
+        print("to %s at %d" %(returnPeer[0],returnPeer[2]))
 
 
 def leaveDHT():
@@ -487,6 +491,7 @@ def leaveDHT():
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     print("\nsent %s" %jsonData)
+
 
 
 main()
