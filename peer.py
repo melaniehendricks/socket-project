@@ -87,6 +87,9 @@ def main():
                 if int(msg) == 6:                                   # beginQuery()
                     eventId = input("Enter event ID: \n")
                     beginQuery(startingPeer, eventId)
+                if int(msg) == 7:                                   # leaveDHT()
+                    leaveDHT()
+
 
 
             
@@ -117,6 +120,8 @@ def main():
                         startingPeer.append(dict["peer-name"])
                         startingPeer.append(dict["IP"])
                         startingPeer.append(dict["p-port"])
+                    if command == "leaveDHT":
+                        print("received: %s\n" %code)
                         
                     
             # if peer socket
@@ -133,7 +138,7 @@ def main():
                     if id != 0:
                         print("command received: %s\n" %command)
                         print("id: %d\n" %id)    
-                        setId(dict, id)
+                        setId(dict, id, dict["n"])
                 if command == "store":                              # store()
                     eid = dict.get("id")
                     pos = dict["pos"]
@@ -215,14 +220,15 @@ def DHTp2p(dict):
     dict.pop("command")
     global id
     id = 0
-    setId(dict, id)
+    n = dict["n"]
+    setId(dict, id, n)
     
 
 
-def setId(dict, id):
+def setId(dict, id, n):
     nextId = id+1
     global ringSize
-    ringSize = dict["n"]
+    ringSize = n
     print("ring size: %s" %ringSize)
     global rNeighbor
     commandDict = {}
@@ -472,5 +478,15 @@ def eventNotFound(returnPeer, eventId):
         jsonData = json.dumps(commandDict)
         pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
         print("\nsent %s\n" %jsonData)
+
+
+def leaveDHT():
+    commandDict = {}
+    commandDict["command"] = "leaveDHT"
+    commandDict["peer-name"] = peerName
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
+    print("\nsent %s" %jsonData)
+
 
 main()

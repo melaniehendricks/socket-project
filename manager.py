@@ -16,13 +16,14 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
-    global peerDict, sock, names, ports                          # global vars
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt                          # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
     mgrPort = args.port
     group = 13
     DHT_complete = False
+    DHT_rebuilt = False
                                            
 
     # packet variables
@@ -123,7 +124,6 @@ def main():
                         failureMsg(command, "peer is not leader", peerIP, peer["m-port"])
                         break
                     else:
-                        DHT_complete = True
                         DHTComplete(peer, command)                        
                         break
 
@@ -132,7 +132,8 @@ def main():
                     if peerName not in names:
                         failureMsg(command, "peer not registered", peerIP, peerPort)
                         break
-                    if DHT_complete == False:
+                    if DHT_complete is False:
+                        print(DHT_complete)
                         failureMsg(command, "DHT setup not complete", peerIP, peer["m-port"])
                         break
                     peer = getPeer(peerName)
@@ -143,8 +144,19 @@ def main():
                     else:
                         peer = getPeer(peerName)
                         queryDHT(peerName, peer, command)
-                        
-                        
+                    
+                # peer wants to leave DHT
+                if command == "leaveDHT":
+                    peer = getPeer(peerName)
+                    if DHT_complete is False:
+                        failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
+                        break                    
+                    state = peer["state"]
+                    if state == "free":
+                        failureMsg(command, "peer is not maintaining the DHT", peerIP, peer["m-port"])
+                        break
+                    else:
+                        awaitRebuild(peer, command)
 
                         
 
@@ -221,6 +233,9 @@ def setupDHT(peer, n, command):
 
 
 def DHTComplete(peer, command): 
+    global DHT_complete
+    DHT_complete = True
+    print("setting DHT_complete to %s\n" %DHT_complete)
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
@@ -246,6 +261,16 @@ def queryDHT(name, peer, command):
     responseDict["peer-name"] = returnPeer["peer-name"]
     responseDict["IP"] = returnPeer["IP"]
     responseDict["p-port"] = returnPeer["p-port"]
+    jsonData = json.dumps(responseDict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+    print("response: %s" %jsonData)
+    print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
+
+
+def awaitRebuild(peer, command):
+    responseDict = {}
+    responseDict["return-code"] = "SUCCESS"
+    responseDict["command"] = command
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)
