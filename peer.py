@@ -139,6 +139,7 @@ def main():
                 if command == "set-id":                                 # set-id() =============== REDO for count
                     global id
                     id = dict.get("id")
+                    print("id: %d" %id)
 
                     n = dict["size"]
                     count = dict["count"]
@@ -146,9 +147,9 @@ def main():
 
                     if count == n:
                         print("logical ring setup complete")
+                        divider()
                     else:
                         print("command received: %s\n" %command)
-                        print("id: %d\n" %id)    
                         setId(dict, id, n, command, count)
                 if command == "store":                                  # store()
                     eid = dict.get("id")
@@ -176,14 +177,13 @@ def main():
                     print("command received: %s\n" %command)
                     delDHT()
                     n = dict["count"]
-                    print(n)
+                    print("count: %d" %n)
                     if n == 0:
                         print("back to peer leaving DHT")
-                        print(peers)
+                        # remove peer
                         peers.pop(id)
-                        print(peers)
                         newSize = ringSize - 1
-                        setId(peers, -1, newSize, "reset-id", 0)
+                        setId(peers, -1, newSize, "reset-id", -1)
                     else:
                         n = n - 1
                         teardown(n) 
@@ -194,13 +194,13 @@ def main():
                     size = dict["size"]
                     count = dict["count"]
                     print("count: %d" %count)
-
+                    print("id: %d\n" %id)
                     if count == size:
+                        print("right neighbor: %s" %rNeighbor)
                         print("logical ring setup complete")
                     else:
                         print("command received: %s\n" %command)
-                        print("id: %d\n" %id)    
-                        setId(dict, id, dict["n"], command, count)
+                        setId(dict, id, size, command, count)
 
 
 
@@ -281,7 +281,7 @@ def setId(dict, id, n, command, count):
     peers = {}
     index = 0
     count += 1
-    
+
     if command == "set-id":                                     # set-id
         for item in dict:                                       # save peers in ring
             if item.isdigit() or type(item) is int:
@@ -290,16 +290,17 @@ def setId(dict, id, n, command, count):
                 peers[index] = peer
                 index += 1
     
-    else:                                                       # reset-id
-        for item in dict:
-            peers[index] = {}
-            peer = dict.get(item)
-            peers[index] = peer
-            index += 1
+    else:                                                       # reset-id !!
+        if count > 0:
+            dict.pop("id")                                      # remove extraneous data 
+            dict.pop("command")
+            dict.pop("size")
+            dict.pop("count")
+        peers = dict                                            # reassign peers 
 
     i = 0 
     for peer in peers.values():
-        if id == ringSize-1:                                #  peer n-1
+        if id == ringSize-1:                                    #  peer n-1
             if i == 0:    
                 # change nextId to leader      
                 nextId = 0
@@ -307,17 +308,16 @@ def setId(dict, id, n, command, count):
                 IP = peer["IP"]
                 port = peer["p-port"]
                 name = peer["peer-name"]
-                rNeighbor.append(IP)
+                rNeighbor.append(IP)                            # get caboose's right neighbor (leader)
                 rNeighbor.append(port)
                 rNeighbor.append(name)
                 break
-        if i == nextId:                                     # leader + other peers
-            #print(peer)
+        if i == nextId:                                         # leader + other peers
             commandDict["id"] = nextId
-            IP = peer.get("IP")
-            port = peer.get("p-port")
+            IP = peer["IP"]
+            port = peer["p-port"]
             name = peer["peer-name"]
-            rNeighbor.append(IP)
+            rNeighbor.append(IP)                                # get right neighbor
             rNeighbor.append(port)
             rNeighbor.append(name)
             break
@@ -325,7 +325,7 @@ def setId(dict, id, n, command, count):
 
     print("right neighbor: %s\n" %peer)
     
-    commandDict["command"] = command                      # build commandDict, update it with peers
+    commandDict["command"] = command                            # build commandDict, update it with peers
     commandDict["size"] = ringSize
     commandDict["count"] = count
     commandDict.update(peers)                                
