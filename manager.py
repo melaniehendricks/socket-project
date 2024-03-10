@@ -23,7 +23,7 @@ def main():
     mgrPort = args.port
     group = 13
     DHT_complete = False
-    DHT_rebuilt = False
+    DHT_rebuilt = ""
                                            
 
     # packet variables
@@ -76,10 +76,15 @@ def main():
                 decoded = msg.decode('utf-8')
                 peerIP, peerPort = addr
                 #print(decoded)
-                
+
                 dict = eval(decoded)                                    # convert to dictionary and deconstruct
                 print("received: %s\n" %dict)
                 command = dict.get("command")
+
+                if DHT_rebuilt == False:
+                    failureMsg(command, "DHT not yet rebuilt", peerIP, pmPort)  # if DHT NOT rebuilt yet
+                    break
+
                 peerName = dict.get("peer-name")
 
                 # peer wants to register 
@@ -148,6 +153,8 @@ def main():
                     
                 # peer wants to leave DHT
                 if command == "leaveDHT":
+                    DHT_rebuilt = False
+                    print("Waiting for DHT to be rebuilt ......\n")
                     peer = getPeer(peerName)
                     if DHT_complete is False:
                         failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
@@ -209,7 +216,7 @@ def setupDHT(peer, n, command):
         responseDict[i] = {}
         
     peer["state"] = "leader"                                            # change state to "leader"
-    reason = "state of " + peer["peer-name"] + " is set to " + peer["state"]
+    reason = "** state of " + peer["peer-name"] + " is set to " + peer["state"] + " **"
     responseDict["reason"] = reason
     responseDict[peerCount]["peer-name"] = peer["peer-name"]
     responseDict[peerCount]["IP"] = peer["IP"]

@@ -20,7 +20,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, YYYY, rNeighbor, myDHT, s, records, startingPeer, fields      # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, YYYY, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor      # global vars
     ringSize = 0
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -33,7 +33,8 @@ def main():
     startingPeer = []
     myDHT = {}
     fields = ""
-    #peers = {}
+    rNeighbor = []
+    #id = -10
 
     # packet variables
     
@@ -136,9 +137,9 @@ def main():
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
                 command = dict["command"]
-                if command == "set-id":                                 # set-id() =============== REDO for count
-                    global id
-                    id = dict.get("id")
+                if command == "set-id":                                 # set-id
+                    id = getId(dict)
+                    #global id
                     print("id: %d" %id)
 
                     n = dict["size"]
@@ -151,7 +152,7 @@ def main():
                     else:
                         print("command received: %s\n" %command)
                         setId(dict, id, n, command, count)
-                if command == "store":                                  # store()
+                if command == "store":                                  # store
                     eid = dict.get("id")
                     pos = dict["pos"]
                     row = dict["event"]
@@ -161,7 +162,7 @@ def main():
                         match(pos, row, header)
                     else:
                         store(eid, s, pos, row, header)
-                if command == "findEvent":                              # findEvent()
+                if command == "findEvent":                              # findEvent
                     print("command received: %s\n" %command)
                     print("from port %d" %addr[1])
                     code = dict["return-code"]
@@ -174,30 +175,40 @@ def main():
                     print("command received: %s\n" %command)
                     foundEvent(fields, dict["event"], dict["id-seq"])
                 if command == "teardown":                               # teardown
-                    print("command received: %s\n" %command)
+                    print("command received: %s" %command)
+                    fromPeer = dict["peer-name"]
+                    print("from %s\n" %fromPeer)
+
                     delDHT()
                     n = dict["count"]
                     print("count: %d" %n)
-                    if n == 0:
+                    if n == ringSize - 1:
+                        savePeerLeaving(n, addr, dict)              # need to notify when DHT rebuilt
+
+                    if n == 0:                                      # if leaving-peer
                         print("back to peer leaving DHT")
                         # remove peer
-                        peers.pop(id)
-                        newSize = ringSize - 1
-                        setId(peers, -1, newSize, "reset-id", -1)
+                        #global id
+                        newPeers = reorderPeers(peers, id)          # reorder peers
+                        id = -1                                     # set new id
+                        newSize = ringSize - 1                      # set new ring size
+                        setId(newPeers, -1, newSize, "reset-id", -1)
                     else:
                         n = n - 1
                         teardown(n) 
-                if command == "reset-id":                                 # reset-id()
-                    #global id
-                    id = dict.get("id")
+                if command == "reset-id":                                 # reset-id
+                    id = getId(dict)
 
                     size = dict["size"]
                     count = dict["count"]
                     print("count: %d" %count)
                     print("id: %d\n" %id)
-                    if count == size:
-                        print("right neighbor: %s" %rNeighbor)
+                    if count == 0:                                     # if new leader
+                        print("** new leader of DHT **")
+                        setId(dict, id, size, command, count)
+                    elif count == size:                                 # if leaving-peer
                         print("logical ring setup complete")
+                        divider()
                     else:
                         print("command received: %s\n" %command)
                         setId(dict, id, size, command, count)
@@ -274,56 +285,83 @@ def setId(dict, id, n, command, count):
     global ringSize
     ringSize = n
     print("ring size: %s" %ringSize)
-    global rNeighbor
+    global rNeighbor    
     commandDict = {}
-    rNeighbor = []
     global peers
     peers = {}
     index = 0
     count += 1
 
-    if command == "set-id":                                     # set-id
+    if command == "set-id":                                     # SET-ID ===============================
         for item in dict:                                       # save peers in ring
             if item.isdigit() or type(item) is int:
                 peers[index] = {}
                 peer = dict.get(item)
                 peers[index] = peer
                 index += 1
+
+        i = 0
+        for peer in peers.values():
+            if id == ringSize-1:                                    #  peer n-1
+                if i == 0:    
+                    # change nextId to leader      
+                    nextId = 0
+                    commandDict["id"] = nextId
+                    IP = peer["IP"]
+                    port = peer["p-port"]
+                    name = peer["peer-name"]
+                    rNeighbor = []
+                    rNeighbor.append(name)
+                    rNeighbor.append(IP)                            # get caboose's right neighbor (leader)
+                    rNeighbor.append(port)
+                    break
+            if i == nextId:                                         # leader + other peers
+                commandDict["id"] = nextId
+                IP = peer["IP"]
+                port = peer["p-port"]
+                name = peer["peer-name"]
+                rNeighbor = []
+                rNeighbor.append(name)
+                rNeighbor.append(IP)                                # get right neighbor
+                rNeighbor.append(port)
+                break
+            i += 1
     
-    else:                                                       # reset-id !!
+    else:                                                       # RESET-ID =================================
         if count > 0:
             dict.pop("id")                                      # remove extraneous data 
             dict.pop("command")
             dict.pop("size")
             dict.pop("count")
         peers = dict                                            # reassign peers 
+        commandDict["id"] = nextId
 
-    i = 0 
-    for peer in peers.values():
-        if id == ringSize-1:                                    #  peer n-1
-            if i == 0:    
-                # change nextId to leader      
-                nextId = 0
-                commandDict["id"] = nextId
-                IP = peer["IP"]
-                port = peer["p-port"]
-                name = peer["peer-name"]
-                rNeighbor.append(IP)                            # get caboose's right neighbor (leader)
-                rNeighbor.append(port)
-                rNeighbor.append(name)
-                break
-        if i == nextId:                                         # leader + other peers
-            commandDict["id"] = nextId
+        if id == ringSize - 1:                                  # if caboose, reassign right neighbor
+            peer = peers["0"]
+            name = peer["peer-name"]
             IP = peer["IP"]
             port = peer["p-port"]
-            name = peer["peer-name"]
-            rNeighbor.append(IP)                                # get right neighbor
-            rNeighbor.append(port)
-            rNeighbor.append(name)
-            break
-        i += 1
 
-    print("right neighbor: %s\n" %peer)
+            oldRight = rNeighbor
+            rNeighbor = []
+            rNeighbor.append(name)
+            rNeighbor.append(IP)
+            rNeighbor.append(port)
+            print("right neighbor: %s\n" %rNeighbor)
+
+            commandDict["command"] = command                            # build commandDict, update it with peers
+            commandDict["size"] = ringSize
+            commandDict["count"] = count
+            commandDict.update(peers)                                
+            jsonData = json.dumps(commandDict)
+            print("\nsent: %s" %jsonData)
+            print("to %s\n" %(oldRight[0]))
+            pSock.sendto(jsonData.encode(), (oldRight[1], oldRight[2]))
+            return
+
+
+    print("right neighbor: %s\n" %rNeighbor)
+
     
     commandDict["command"] = command                            # build commandDict, update it with peers
     commandDict["size"] = ringSize
@@ -331,10 +369,16 @@ def setId(dict, id, n, command, count):
     commandDict.update(peers)                                
     jsonData = json.dumps(commandDict)
     print("\nsent: %s" %jsonData)
-    print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
-    pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
+    print("to %s\n" %(rNeighbor[0]))
+    pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
 
     
+def getId(dict):
+    global id
+    id = dict["id"]
+    return id
+    
+
 def constructDHTs():
     fileName = "data/details-" + str(YYYY) + ".csv"
     rows = []
@@ -390,10 +434,10 @@ def store(id, s, pos, row, header):
     commandDict["event"] = row                              # event
     commandDict["header"] = header
     jsonData = json.dumps(commandDict)
-    print("passing along to right neighbor: %s\n" %rNeighbor[2])
+    print("passing along to right neighbor: %s\n" %rNeighbor[0])
     print("sent: %s" %jsonData)
-    print("to %s at %d\n" %(rNeighbor[0], rNeighbor[1]))
-    pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
+    print("to %s at %d\n" %(rNeighbor[1], rNeighbor[2]))
+    pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
 
 def match(pos, row, header):
     print("stored event locally at position %d" %pos)
@@ -557,15 +601,59 @@ def teardown(n):
     commandDict = {}
     commandDict["command"] = "teardown"
     commandDict["count"] = n
+    commandDict["peer-name"] = peerName
     jsonData = json.dumps(commandDict)
-    print("passing along to right neighbor: %s\n" %rNeighbor[2])
-    pSock.sendto(jsonData.encode(), (rNeighbor[0], rNeighbor[1]))
+    print("passing along to right neighbor: %s\n" %rNeighbor[0])
+    pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
     print("\nsent %s\n" %jsonData)
+
+
+def savePeerLeaving(n, addr, dict):                       
+    global lNeighbor
+    lNeighbor = []
+    lNeighbor.append(dict["peer-name"])
+    lNeighbor.append(addr[0])
+    lNeighbor.append(addr[1])
+    print("peer leaving DHT: %s" %lNeighbor)
 
 
 def delDHT():
     global myDHT
     del myDHT
+
+
+def reorderPeers(peers, id):
+    newPeers = {}
+
+    index = 0
+    if id > 0 and id < ringSize - 1:                            # if leaving-peer is somewhere in the middle
+        for i in range(id+1, ringSize):                         # add peers after leaving-peer
+            peer = peers[i]
+            newPeers[index] = {}
+            newPeers[index] = peer
+            index += 1
+        
+        for i in range(0, id):                                  # add peers before leaving-peer
+            peer = peers[i]
+            newPeers[index] = {}
+            newPeers[index] = peer
+            index += 1
+
+    elif id == 0:                                               # if leaving-peer is leader
+        for i in range(id+1, ringSize):                         # add only peers after leaving-peer
+            peer = peers[i]
+            newPeers[index] = {}
+            newPeers[index] = peer
+            index += 1
+
+    else:                                                       # if leaving-peer is last
+        for i in range(ringSize):
+            peer = peers[i]
+            newPeers[index] = {}
+            newPeers[index] = peer
+            index += 1
+
+    return newPeers
 
 
 main()
