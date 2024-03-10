@@ -20,7 +20,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, YYYY, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor      # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor      # global vars
     ringSize = 0
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -31,7 +31,7 @@ def main():
     s = 0
     records = 0
     startingPeer = []
-    myDHT = {}
+    #myDHT = {}
     fields = ""
     rNeighbor = []
     #id = -10
@@ -77,11 +77,11 @@ def main():
                     userInput = input("Enter n and year (YYYY): \n")
                     vals = userInput.split(", ")
                     n = vals[0]
-                    global YYYY
+                    #global YYYY
                     YYYY = vals[1]
-                    setup_DHT(n)
+                    setup_DHT(n, YYYY)
                 if int(msg) == 3:                                       # constructDHTs()
-                    constructDHTs()
+                    constructDHTs(YYYY)
                 if int(msg) == 4:                                       # DHTcomplete() 
                     DHTcomplete()
                 if int(msg) == 5:                                       # queryDHT()
@@ -94,6 +94,9 @@ def main():
                 if int(msg) == 8:                                       # teardown()
                     n = ringSize - 1
                     teardown(n)
+                if int(msg) == 9:
+                    year = input("Enter year (YYYY): \n")
+                    constructDHTs(year)
 
 
 
@@ -258,7 +261,7 @@ def register(address, mport, pport):
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     
 
-def setup_DHT(n):
+def setup_DHT(n, YYYY):
     # build dictionary to send
     commandDict = {}
     commandDict["command"] = "setupDHT"
@@ -281,14 +284,18 @@ def DHTp2p(dict):                                                      # pop ite
 
 
 def setId(dict, id, n, command, count):
-    nextId = id+1
-    global ringSize
-    ringSize = n
-    print("ring size: %s" %ringSize)
-    global rNeighbor    
+    global myDHT
+    myDHT = {}                                                  # initialize DHTs,
+    global rNeighbor                                            # right neighbor,
     commandDict = {}
     global peers
-    peers = {}
+    peers = {}                                                  # peers,
+    global ringSize
+    ringSize = n                                                # and ring size
+
+    nextId = id+1
+    print("ring size: %s" %ringSize)
+
     index = 0
     count += 1
 
@@ -356,7 +363,7 @@ def setId(dict, id, n, command, count):
             jsonData = json.dumps(commandDict)
             print("\nsent: %s" %jsonData)
             print("to %s\n" %(oldRight[0]))
-            pSock.sendto(jsonData.encode(), (oldRight[1], oldRight[2]))
+            pSock.sendto(jsonData.encode(), (oldRight[1], oldRight[2])) # send to leaving-peer
             return
 
 
@@ -379,7 +386,9 @@ def getId(dict):
     return id
     
 
-def constructDHTs():
+def constructDHTs(YYYY):
+    global myDHT
+    myDHT = {}
     fileName = "data/details-" + str(YYYY) + ".csv"
     rows = []
     with open(fileName, 'r') as csvfile:
@@ -447,9 +456,9 @@ def match(pos, row, header):
     global myDHT
     myDHT[pos] = {}
     myDHT[pos] = row                                        # store event in myDHT at position pos
-    global records
-    records += 1                                            # increment num records stored in peer
-    print("num records: %d\n" %records)
+    #global records
+    #records += 1                                            # increment num records stored in peer
+    print("num records: %d\n" %len(myDHT))
 
 
 def DHTcomplete():                                          # send to manager
