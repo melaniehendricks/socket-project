@@ -16,7 +16,11 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
+<<<<<<< Updated upstream
     global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer                          # global vars
+=======
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer, joining_peer                          # global vars
+>>>>>>> Stashed changes
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
@@ -25,6 +29,10 @@ def main():
     DHT_complete = False
     DHT_rebuilt = ""
     leaving_peer = ""
+<<<<<<< Updated upstream
+=======
+    joining_peer = ""
+>>>>>>> Stashed changes
                                            
 
     # packet variables
@@ -149,6 +157,7 @@ def main():
                         print(DHT_complete)
                         failureMsg(command, "DHT setup not complete", peerIP, peer["m-port"])
                         break
+
                     peer = getPeer(peerName)
                     state = peer["state"]
                     if state != "free":
@@ -160,6 +169,7 @@ def main():
                     
                 # peer wants to leave DHT
                 if command == "leaveDHT":
+<<<<<<< Updated upstream
                     #global leaving_peer
                     leaving_peer = peerName
                     DHT_rebuilt = False
@@ -168,13 +178,42 @@ def main():
                     if DHT_complete is False:
                         failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
                         break                    
+=======
+                    if DHT_complete is False:
+                        failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
+                        break            
+
+                    peer = getPeer(peerName)        
+>>>>>>> Stashed changes
                     state = peer["state"]
                     if state == "free":
                         failureMsg(command, "peer is not maintaining the DHT", peerIP, peer["m-port"])
                         break
                     else:
+<<<<<<< Updated upstream
                         awaitRebuild(peer, command)
                 
+=======
+                        leaving_peer = peerName
+                        DHT_rebuilt = False
+                        print("Waiting for DHT to be rebuilt ......\n")
+                        awaitRebuild(peer, command)
+                
+                #
+                if command == "joinDHT":
+                    if DHT_complete is False:
+                        failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
+                        break
+
+                    peer = getPeer(peerName)
+                    state = peer["state"]
+                    if state != "free":
+                        failureMsg(command, "peer is registered but not free", peerIP, peer["m-port"])
+                        break
+                    else:
+                        joining_peer = peerName
+                        DHT_rebuilt = False
+>>>>>>> Stashed changes
 
 
                         

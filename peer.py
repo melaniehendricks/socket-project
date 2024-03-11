@@ -99,6 +99,12 @@ def main():
                 if int(msg) == 9:                                       # rebuildDHT()
                     year = input("Enter year (YYYY): \n")
                     rebuildDHT(year)
+<<<<<<< Updated upstream
+=======
+                if int(msg) == 10:                                      # joinDHT()
+                    name = input("Enter name: \n")
+                    joinDHT(name)
+>>>>>>> Stashed changes
                     
 
 
@@ -227,6 +233,10 @@ def main():
                     constructDHTs(year)
 
                 if command == "dht-rebuilt":                            # dht-rebuilt
+<<<<<<< Updated upstream
+=======
+                    print("command received: %s" %command)
+>>>>>>> Stashed changes
                     manager = []
                     manager.append("manager")
                     manager.append(mgrIP)
@@ -709,5 +719,18 @@ def dhtRebuilt(receiver, optional):
     print("sent: %s" %jsonData)
     print("to %s\n" %(receiver[0]))
     pSock.sendto(jsonData.encode(), (receiver[1], receiver[2]))
+<<<<<<< Updated upstream
+=======
+
+
+def joinDHT(name):
+    commandDict = {}
+    commandDict["command"] = "joinDHT"
+    commandDict["peer-name"] = name
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
+    print("\nsent %s\n" %jsonData)
+    
+>>>>>>> Stashed changes
 
 main()
