@@ -138,9 +138,11 @@ def main():
                     if command == "leaveDHT":
                         print("received: %s\n" %code)
                     if command == "dht-rebuilt":
-                        print("received: %s" %code)
-                    if command == "joinDHT":
                         print("received: %s\n" %code)
+                    if command == "joinDHT":
+                        print("received: %s" %code)
+                        leader = dict["leader"]
+                        print("current leader: %s\n" %leader)
                         
                     
             # ============ P E E R   S O C K E T  =======================

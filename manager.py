@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
-    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer, joining_peer                          # global vars
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer, joining_peer, leader                          # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
@@ -26,6 +26,7 @@ def main():
     DHT_rebuilt = ""
     leaving_peer = ""
     joining_peer = ""
+    leader = ""
                                            
 
     # packet variables
@@ -175,7 +176,7 @@ def main():
                         leaving_peer = peerName
                         DHT_rebuilt = False
                         print("Waiting for DHT to be rebuilt ......\n")
-                        awaitRebuild(peer, command)
+                        awaitRebuild(peer, command, "")
 
                     
                 if command == "joinDHT":
@@ -191,7 +192,14 @@ def main():
                         joining_peer = peerName
                         DHT_rebuilt = False
                         print("Waiting for DHT to be rebuilt ......\n")
-                        awaitRebuild(peer, command)
+
+                        # find leader
+                        for item in peerDict:                                                   # update state of former leader to inDHT
+                            p = peerDict.get(item)
+                            if p["state"] == "leader":
+                                leader = p
+                                break
+                        awaitRebuild(peer, command, leader)
 
 
                 
@@ -247,7 +255,10 @@ def setupDHT(peer, n, command):
         responseDict[i] = {}
         
     peer["state"] = "leader"                                            # change state to "leader"
+    global leader
+    leader = peer
     reason = "** state of " + peer["peer-name"] + " is set to " + peer["state"] + " **"
+    
     responseDict["reason"] = reason
     responseDict[peerCount]["peer-name"] = peer["peer-name"]
     responseDict[peerCount]["IP"] = peer["IP"]
@@ -308,10 +319,11 @@ def queryDHT(name, peer, command):
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
-def awaitRebuild(peer, command):
+def awaitRebuild(peer, command, optional):
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
+    responseDict["leader"] = optional
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)
@@ -331,6 +343,7 @@ def updatePeers(command, dict, peerName):
             break
 
     l = dict["new-leader"]
+    global leader
     leader = getPeer(l)
     leader["state"] = "leader"                                              # update state of new leader
     print("state of %s is set to %s\n" %(l, leader["state"]))
