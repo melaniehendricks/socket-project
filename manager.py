@@ -16,13 +16,15 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
-    global peerDict, sock, names, ports                          # global vars
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer                          # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
     mgrPort = args.port
     group = 13
     DHT_complete = False
+    DHT_rebuilt = ""
+    leaving_peer = ""
                                            
 
     # packet variables
@@ -53,32 +55,44 @@ def main():
         else:
             sys.exit("Error: please enter a valid port")
 
-    # else: required=True => error: the following arguments are required: --port
-
 
     # infinite loop listening to given port for incoming messages from peers
     while True:
         events = selector.select()
         for key, _ in events:
             sockToRead = key.fileobj
-            data = sockToRead
+            #data = sockToRead
 
-            # if keyboard input
+            # ============ K E Y B O A R D    I N P U T =======================
             if key.fd == sys.stdin.fileno():
                 msg = sys.stdin.readline()
                 print("message from keyboard: %s" % msg)
             
-            # if socket
+            # ============ P E E R   S O C K E T  =======================
             if key.fd == sock.fileno():
+                divider()
                 msg, addr = sockToRead.recvfrom(1024)
                 decoded = msg.decode('utf-8')
                 peerIP, peerPort = addr
                 #print(decoded)
-                
+
                 dict = eval(decoded)                                    # convert to dictionary and deconstruct
                 print("received: %s\n" %dict)
                 command = dict.get("command")
+
                 peerName = dict.get("peer-name")
+                if DHT_rebuilt == False:
+                    if leaving_peer != peerName:
+                        failureMsg(command, "DHT not yet rebuilt", peerIP, pmPort)  # if DHT NOT rebuilt yet
+                        break
+                    else:
+                        if command == "dht-rebuilt":
+                            DHT_rebuilt = True                  # ?????????????? "" or True
+                            print("DHT has been rebuilt.\n")
+                            updatePeers(command, dict, peerName)
+                                                                  
+                                               
+
 
                 # peer wants to register 
                 if command == "register":
@@ -123,7 +137,6 @@ def main():
                         failureMsg(command, "peer is not leader", peerIP, peer["m-port"])
                         break
                     else:
-                        DHT_complete = True
                         DHTComplete(peer, command)                        
                         break
 
@@ -132,7 +145,8 @@ def main():
                     if peerName not in names:
                         failureMsg(command, "peer not registered", peerIP, peerPort)
                         break
-                    if DHT_complete == False:
+                    if DHT_complete is False:
+                        print(DHT_complete)
                         failureMsg(command, "DHT setup not complete", peerIP, peer["m-port"])
                         break
                     peer = getPeer(peerName)
@@ -143,13 +157,32 @@ def main():
                     else:
                         peer = getPeer(peerName)
                         queryDHT(peerName, peer, command)
-                        
-                        
+                    
+                # peer wants to leave DHT
+                if command == "leaveDHT":
+                    #global leaving_peer
+                    leaving_peer = peerName
+                    DHT_rebuilt = False
+                    print("Waiting for DHT to be rebuilt ......\n")
+                    peer = getPeer(peerName)
+                    if DHT_complete is False:
+                        failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
+                        break                    
+                    state = peer["state"]
+                    if state == "free":
+                        failureMsg(command, "peer is not maintaining the DHT", peerIP, peer["m-port"])
+                        break
+                    else:
+                        awaitRebuild(peer, command)
+                
+
 
                         
 
 # ============= HELPER METHODS ==========================
-                
+def divider():
+    print("============================================================")
+
 def failureMsg(command, reason, peerIP, port):
     responseDict = {}
     responseDict["return-code"] = "FAILURE"
@@ -194,7 +227,7 @@ def setupDHT(peer, n, command):
         responseDict[i] = {}
         
     peer["state"] = "leader"                                            # change state to "leader"
-    reason = "state of " + peer["peer-name"] + " is set to " + peer["state"]
+    reason = "** state of " + peer["peer-name"] + " is set to " + peer["state"] + " **"
     responseDict["reason"] = reason
     responseDict[peerCount]["peer-name"] = peer["peer-name"]
     responseDict[peerCount]["IP"] = peer["IP"]
@@ -221,6 +254,9 @@ def setupDHT(peer, n, command):
 
 
 def DHTComplete(peer, command): 
+    global DHT_complete
+    DHT_complete = True
+    print("setting DHT_complete to %s\n" %DHT_complete)
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
@@ -250,6 +286,41 @@ def queryDHT(name, peer, command):
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
+
+
+def awaitRebuild(peer, command):
+    responseDict = {}
+    responseDict["return-code"] = "SUCCESS"
+    responseDict["command"] = command
+    jsonData = json.dumps(responseDict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+    print("response: %s" %jsonData)
+    print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
     
+
+def updatePeers(command, dict, peerName):
+    peer = getPeer(peerName)
+    peer["state"] = "free"                                                  # update state of leaving-peer to free
+    print("state of %s is set to %s" %(peerName, peer["state"]))
+
+    for item in peerDict:                                                   # update state of former leader to inDHT
+        p = peerDict.get(item)
+        if p["state"] == "leader":
+            p["state"] = "inDHT"
+            print("state of %s is set to %s" %(p["peer-name"], p["state"]))
+            break
+
+    l = dict["new-leader"]
+    leader = getPeer(l)
+    leader["state"] = "leader"                                              # update state of new leader
+    print("state of %s is set to %s\n" %(l, leader["state"]))
+
+    responseDict = {}
+    responseDict["return-code"] = "SUCCESS"
+    responseDict["command"] = command
+    jsonData = json.dumps(responseDict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))              # send leaving-peer response
+    print("response: %s" %jsonData)
+    print("sent to %s on port %d\n" %(peerName, peer["m-port"]))
 
 main()
