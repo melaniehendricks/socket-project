@@ -20,7 +20,7 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor      # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor, rebuildingDHT      # global vars
     ringSize = 0
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -31,9 +31,11 @@ def main():
     s = 0
     records = 0
     startingPeer = []
-    #myDHT = {}
     fields = ""
     rNeighbor = []
+    lNeighbor = []
+    rebuildingDHT = False
+    #myDHT = {}
     #id = -10
 
     # packet variables
@@ -59,7 +61,7 @@ def main():
             #print(sockToRead)
             data = sockToRead
 
-            # if keyboard input
+            # ============ K E Y B O A R D    I N P U T =======================
             if key.fd == sys.stdin.fileno():
                 divider()
                 msg = sys.stdin.readline()
@@ -94,14 +96,15 @@ def main():
                 if int(msg) == 8:                                       # teardown()
                     n = ringSize - 1
                     teardown(n)
-                if int(msg) == 9:
+                if int(msg) == 9:                                       # rebuildDHT()
                     year = input("Enter year (YYYY): \n")
-                    constructDHTs(year)
+                    rebuildDHT(year)
+                    
 
 
 
             
-            # if manager socket
+            # ============ M A N A G E R   S O C K E T =======================
             if key.fd == mSock.fileno():
                 divider()
                 msg, addr = sockToRead.recvfrom(1024)
@@ -131,9 +134,11 @@ def main():
                         startingPeer.append(dict["p-port"])
                     if command == "leaveDHT":
                         print("received: %s\n" %code)
+                    if command == "dht-rebuilt":
+                        print("received: %s" %code)
                         
                     
-            # if peer socket
+            # ============ P E E R   S O C K E T  =======================
             if key.fd == pSock.fileno():
                 divider()
                 msg, addr = sockToRead.recvfrom(1024)
@@ -190,8 +195,7 @@ def main():
 
                     if n == 0:                                      # if leaving-peer
                         print("back to peer leaving DHT")
-                        # remove peer
-                        #global id
+
                         newPeers = reorderPeers(peers, id)          # reorder peers
                         id = -1                                     # set new id
                         newSize = ringSize - 1                      # set new ring size
@@ -215,6 +219,21 @@ def main():
                     else:
                         print("command received: %s\n" %command)
                         setId(dict, id, size, command, count)
+
+                if command == "rebuild-dht":                            # rebuild-dht
+                    print("command received: %s" %command)
+                    year = dict["YYYY"]
+                    rebuildingDHT = True
+                    constructDHTs(year)
+
+                if command == "dht-rebuilt":                            # dht-rebuilt
+                    manager = []
+                    manager.append("manager")
+                    manager.append(mgrIP)
+                    manager.append(mgrPort)
+                    dhtRebuilt(manager, rNeighbor[0])                   # leaving-peer alerts manager
+
+
 
 
 
@@ -241,7 +260,7 @@ def bindToPorts(group, socket):                                         # calc p
 def parseFailureResponse(dict):                                          # failure + reason why
     command = dict["command"]               
     reason = dict["reason"]
-    print("%s failed because %s. Please try again.\n" %(command,reason))
+    print("%s failed because %s. \n" %(command,reason))
 
 
 def divider():
@@ -419,6 +438,12 @@ def constructDHTs(YYYY):
         else:
             store(eid, s, pos, row, fields)                     # else, pass to right neighbor
         print('\n')
+
+    print("Reached end of records.\n")
+    
+    if rebuildingDHT is True:                                   # new leader alerts leaving-peer
+        dhtRebuilt(lNeighbor, "")
+
             
 
 def isPrime(s):
@@ -617,7 +642,7 @@ def teardown(n):
     print("\nsent %s\n" %jsonData)
 
 
-def savePeerLeaving(n, addr, dict):                       
+def savePeerLeaving(n, addr, dict):                                    # right neighbor of leaving-peer                  
     global lNeighbor
     lNeighbor = []
     lNeighbor.append(dict["peer-name"])
@@ -664,5 +689,25 @@ def reorderPeers(peers, id):
 
     return newPeers
 
+
+def rebuildDHT(year):
+    commandDict = {}
+    commandDict["command"] = "rebuild-dht"
+    commandDict["YYYY"] = year
+    jsonData = json.dumps(commandDict)
+    print("sent: %s" %jsonData)
+    print("to %s\n" %rNeighbor[0])
+    pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
+
+
+def dhtRebuilt(receiver, optional):
+    commandDict = {}
+    commandDict["command"] = "dht-rebuilt"
+    commandDict["peer-name"] = peerName
+    commandDict["new-leader"] = optional
+    jsonData = json.dumps(commandDict)
+    print("sent: %s" %jsonData)
+    print("to %s\n" %(receiver[0]))
+    pSock.sendto(jsonData.encode(), (receiver[1], receiver[2]))
 
 main()
