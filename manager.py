@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
-    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer                          # global vars
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer, joining_peer                          # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
@@ -25,6 +25,7 @@ def main():
     DHT_complete = False
     DHT_rebuilt = ""
     leaving_peer = ""
+    joining_peer = ""
                                            
 
     # packet variables
@@ -161,20 +162,38 @@ def main():
                     
                 # peer wants to leave DHT
                 if command == "leaveDHT":
-                    #global leaving_peer
-                    leaving_peer = peerName
-                    DHT_rebuilt = False
-                    print("Waiting for DHT to be rebuilt ......\n")
-                    peer = getPeer(peerName)
                     if DHT_complete is False:
                         failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
-                        break                    
+                        break             
+                
+                    peer = getPeer(peerName)       
                     state = peer["state"]
                     if state == "free":
                         failureMsg(command, "peer is not maintaining the DHT", peerIP, peer["m-port"])
                         break
                     else:
+                        leaving_peer = peerName
+                        DHT_rebuilt = False
+                        print("Waiting for DHT to be rebuilt ......\n")
                         awaitRebuild(peer, command)
+
+                    
+                if command == "joinDHT":
+                    if DHT_complete is False:
+                        failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
+                        break
+                    peer = getPeer(peerName)
+                    state = peer["state"]
+                    if state != "free":
+                        failureMsg(command, "peer is already part of the DHT", peerIP, peer["m-port"])
+                        break
+                    else:
+                        joining_peer = peerName
+                        DHT_rebuilt = False
+                        print("Waiting for DHT to be rebuilt ......\n")
+                        awaitRebuild(peer, command)
+
+
                 
 
 

@@ -99,6 +99,9 @@ def main():
                 if int(msg) == 9:                                       # rebuildDHT()
                     year = input("Enter year (YYYY): \n")
                     rebuildDHT(year)
+                if int(msg) == 10:
+                    name = input("Enter name: \n")
+                    joinDHT(name)
                     
 
 
@@ -136,6 +139,8 @@ def main():
                         print("received: %s\n" %code)
                     if command == "dht-rebuilt":
                         print("received: %s" %code)
+                    if command == "joinDHT":
+                        print("received: %s\n" %code)
                         
                     
             # ============ P E E R   S O C K E T  =======================
