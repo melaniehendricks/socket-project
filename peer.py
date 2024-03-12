@@ -235,7 +235,7 @@ def main():
                     n = dict["count"]
                     print("count: %d" %n)
                     if n == ringSize - 1:
-                        savePeerToNotify(addr, dict)                # need to notify when DHT rebuilt
+                        savePeerToNotify(addr, dict, "DHT complete")                # need to notify when DHT rebuilt
 
                     if n == 0:                                      # if leaving-peer
                         print("back to peer who initiated")
@@ -287,10 +287,12 @@ def main():
 
 
 
-                if command == "teardown-join":
+                if command == "teardown-join":                          # teardown-join
                     print("command received: %s" %command)
                     fromPeer = dict["peer-name"]
                     print("from %s\n" %fromPeer)
+
+                    savePeerToNotify(addr, dict, "teardown complete")
 
                     delDHT(myDHT)
                     n = dict["count"]
@@ -703,13 +705,13 @@ def teardown(n, recipient):
     print("\nsent %s\n" %jsonData)
 
 
-def savePeerToNotify(addr, dict):                                    # right neighbor of leaving-peer                  
+def savePeerToNotify(addr, dict, event):                                    # right neighbor of leaving-peer or peer wanting to join                  
     global lNeighbor
     lNeighbor = []
     lNeighbor.append(dict["peer-name"])
     lNeighbor.append(addr[0])
     lNeighbor.append(addr[1])
-    print("peer to notify when DHT complete: %s" %lNeighbor)
+    print("peer to notify when %s: %s" %(event, lNeighbor))
 
 
 def delDHT(myDHT):
