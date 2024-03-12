@@ -20,7 +20,9 @@ def main():
 
     args = parser.parse_args()
 
-    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName, peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor, rebuildingDHT      # global vars
+    global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName                                # global vars
+    global peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor, rebuildingDHT    
+    global leader 
     ringSize = 0
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -33,10 +35,10 @@ def main():
     startingPeer = []
     fields = ""
     rNeighbor = []
-    lNeighbor = []
+    lNeighbor = []    
     rebuildingDHT = False
-    #myDHT = {}
-    #id = -10
+    leader = []
+
 
     # packet variables
     
@@ -65,6 +67,9 @@ def main():
             if key.fd == sys.stdin.fileno():
                 divider()
                 msg = sys.stdin.readline()
+                if int(msg) == 0:
+                    print(myDHT)
+
                 if int(msg) == 1:                                       # register()
                     userInput = input("Enter peer name, peer address: \n")
                     vals = userInput.split(", ")
@@ -75,6 +80,7 @@ def main():
                     #pport = vals[3]
                     register(address, peer_mgrPort, peerPort)
                     break
+
                 if int(msg) == 2:                                       # setup-DHT()
                     userInput = input("Enter n and year (YYYY): \n")
                     vals = userInput.split(", ")
@@ -82,26 +88,37 @@ def main():
                     #global YYYY
                     YYYY = vals[1]
                     setup_DHT(n, YYYY)
+
                 if int(msg) == 3:                                       # constructDHTs()
                     constructDHTs(YYYY)
+
                 if int(msg) == 4:                                       # DHTcomplete() 
                     DHTcomplete()
+
                 if int(msg) == 5:                                       # queryDHT()
                     queryDHT()
+
                 if int(msg) == 6:                                       # beginQuery()
                     eventId = input("Enter event ID: \n")
                     beginQuery(startingPeer, eventId)
+
                 if int(msg) == 7:                                       # leaveDHT()
                     leaveDHT()
+
                 if int(msg) == 8:                                       # teardown()
                     n = ringSize - 1
-                    teardown(n)
+                    teardown(n, rNeighbor)
+
                 if int(msg) == 9:                                       # rebuildDHT()
                     year = input("Enter year (YYYY): \n")
                     rebuildDHT(year)
-                if int(msg) == 10:
+
+                if int(msg) == 10:                                      # joinDHT()
                     name = input("Enter name: \n")
                     joinDHT(name)
+
+                if int(msg) == 11:                                      # initTeardown()                    
+                    initTeardown(peerName)
                     
 
 
@@ -124,24 +141,33 @@ def main():
                     command = dict["command"]
                     if command == "register":
                         print("received: %s\n" %code)   
+
                     if command == "setupDHT":
                         print("received: %s\n" %code)
                         print(dict["reason"])
                         DHTp2p(dict)
+
                     if command == "DHTcomplete":
                         print("received: %s\n" %code)
+
                     if command == "queryDHT":
                         print("received: %s\n" %code)
                         startingPeer.append(dict["peer-name"])
                         startingPeer.append(dict["IP"])
                         startingPeer.append(dict["p-port"])
+
                     if command == "leaveDHT":
                         print("received: %s\n" %code)
+
                     if command == "dht-rebuilt":
                         print("received: %s\n" %code)
+
                     if command == "joinDHT":
                         print("received: %s" %code)
-                        leader = dict["leader"]
+                        current = dict["leader"]
+                        leader.append(current["peer-name"])
+                        leader.append(current["IP"])
+                        leader.append(current["p-port"])
                         print("current leader: %s\n" %leader)
                         
                     
@@ -154,7 +180,6 @@ def main():
                 command = dict["command"]
                 if command == "set-id":                                 # set-id
                     id = getId(dict)
-                    #global id
                     print("id: %d" %id)
 
                     n = dict["size"]
@@ -167,6 +192,9 @@ def main():
                     else:
                         print("command received: %s\n" %command)
                         setId(dict, id, n, command, count)
+
+
+
                 if command == "store":                                  # store
                     eid = dict.get("id")
                     pos = dict["pos"]
@@ -177,6 +205,9 @@ def main():
                         match(pos, row, header)
                     else:
                         store(eid, s, pos, row, header)
+
+
+
                 if command == "findEvent":                              # findEvent
                     print("command received: %s\n" %command)
                     print("from port %d" %addr[1])
@@ -186,30 +217,39 @@ def main():
                         parseFailureResponse(dict)
                     else:
                         findEvent(dict)
+
+
+
                 if command == "foundEvent":                             # foundEvent
                     print("command received: %s\n" %command)
                     foundEvent(fields, dict["event"], dict["id-seq"])
+
+
+
                 if command == "teardown":                               # teardown
                     print("command received: %s" %command)
                     fromPeer = dict["peer-name"]
                     print("from %s\n" %fromPeer)
 
-                    delDHT()
+                    delDHT(myDHT)
                     n = dict["count"]
                     print("count: %d" %n)
                     if n == ringSize - 1:
-                        savePeerLeaving(n, addr, dict)              # need to notify when DHT rebuilt
+                        savePeerToNotify(addr, dict)                # need to notify when DHT rebuilt
 
                     if n == 0:                                      # if leaving-peer
-                        print("back to peer leaving DHT")
+                        print("back to peer who initiated")
 
-                        newPeers = reorderPeers(peers, id)          # reorder peers
+                        newPeers = reorderPeersLeaving(peers, id)   # reorder peers
                         id = -1                                     # set new id
                         newSize = ringSize - 1                      # set new ring size
                         setId(newPeers, -1, newSize, "reset-id", -1)
                     else:
                         n = n - 1
-                        teardown(n) 
+                        teardown(n, rNeighbor) 
+
+
+
                 if command == "reset-id":                                 # reset-id
                     id = getId(dict)
 
@@ -227,13 +267,18 @@ def main():
                         print("command received: %s\n" %command)
                         setId(dict, id, size, command, count)
 
+
+
                 if command == "rebuild-dht":                            # rebuild-dht
                     print("command received: %s" %command)
                     year = dict["YYYY"]
                     rebuildingDHT = True
                     constructDHTs(year)
 
+
+
                 if command == "dht-rebuilt":                            # dht-rebuilt
+                    print("command received: %s" %command)
                     manager = []
                     manager.append("manager")
                     manager.append(mgrIP)
@@ -241,6 +286,15 @@ def main():
                     dhtRebuilt(manager, rNeighbor[0])                   # leaving-peer alerts manager
 
 
+
+                if command == "teardown-join":
+                    print("command received: %s" %command)
+                    fromPeer = dict["peer-name"]
+                    print("from %s\n" %fromPeer)
+
+                    delDHT(myDHT)
+                    n = dict["count"]
+                    print("count: %d" %n)
 
 
 
@@ -413,8 +467,8 @@ def getId(dict):
     
 
 def constructDHTs(YYYY):
-    global myDHT
-    myDHT = {}
+    #global myDHT
+    #myDHT = {}
     fileName = "data/details-" + str(YYYY) + ".csv"
     rows = []
     with open(fileName, 'r') as csvfile:
@@ -638,32 +692,31 @@ def leaveDHT():
     print("\nsent %s\n" %jsonData)
 
 
-def teardown(n):
+def teardown(n, recipient):
     commandDict = {}
     commandDict["command"] = "teardown"
     commandDict["count"] = n
     commandDict["peer-name"] = peerName
     jsonData = json.dumps(commandDict)
-    print("passing along to right neighbor: %s\n" %rNeighbor[0])
-    pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
+    print("passing along to right neighbor: %s\n" %recipient[0])
+    pSock.sendto(jsonData.encode(), (recipient[1], recipient[2]))
     print("\nsent %s\n" %jsonData)
 
 
-def savePeerLeaving(n, addr, dict):                                    # right neighbor of leaving-peer                  
+def savePeerToNotify(addr, dict):                                    # right neighbor of leaving-peer                  
     global lNeighbor
     lNeighbor = []
     lNeighbor.append(dict["peer-name"])
     lNeighbor.append(addr[0])
     lNeighbor.append(addr[1])
-    print("peer leaving DHT: %s" %lNeighbor)
+    print("peer to notify when DHT complete: %s" %lNeighbor)
 
 
-def delDHT():
-    global myDHT
+def delDHT(myDHT):
     del myDHT
 
 
-def reorderPeers(peers, id):
+def reorderPeersLeaving(peers, id):
     newPeers = {}
 
     index = 0
@@ -724,7 +777,19 @@ def joinDHT(name):
     commandDict["peer-name"] = name
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
-    print("\nsent %s\n" %jsonData)
+    print("\nsent %s" %jsonData)
+    print("to manager\n")
     
+
+def initTeardown(name):
+    commandDict = {}
+    commandDict["command"] = "teardown-join"
+    commandDict["peer-name"] = name
+    commandDict["count"] = ringSize
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (leader[1], leader[2]))
+    print("\n sent: %s" %jsonData)
+    print("to %s\n" %leader[0])
+
 
 main()
