@@ -231,7 +231,7 @@ def main():
                     fromPeer = dict["peer-name"]
                     print("from %s\n" %fromPeer)
 
-                    delDHT(myDHT)
+                    delDHT()
                     n = dict["count"]
                     print("count: %d" %n)
                     if n == ringSize - 1:
@@ -292,11 +292,16 @@ def main():
                     fromPeer = dict["peer-name"]
                     print("from %s\n" %fromPeer)
 
-                    savePeerToNotify(addr, dict, "teardown complete")
-
-                    delDHT(myDHT)
+                    delDHT()
                     n = dict["count"]
                     print("count: %d" %n)
+
+                    if count == ringSize:                               # if current leader
+                        savePeerToNotify(addr, dict, "teardown complete")
+                        dict.pop("peer-name")
+                        dict["count"] = n - 1 
+
+                    
 
 
 
@@ -714,8 +719,9 @@ def savePeerToNotify(addr, dict, event):                                    # ri
     print("peer to notify when %s: %s" %(event, lNeighbor))
 
 
-def delDHT(myDHT):
-    del myDHT
+def delDHT():
+    global myDHT
+    myDHT = {}
 
 
 def reorderPeersLeaving(peers, id):
@@ -790,7 +796,7 @@ def initTeardown(name):
     commandDict["count"] = ringSize
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (leader[1], leader[2]))
-    print("\n sent: %s" %jsonData)
+    print("\nsent: %s" %jsonData)
     print("to %s\n" %leader[0])
 
 
