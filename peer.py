@@ -296,13 +296,14 @@ def main():
                     n = dict["count"]
                     print("count: %d" %n)
 
-                    if n == 0:                               # if current leader
+                    if n == 0:                                          # if current leader
                         savePeerToNotify(addr, dict, "teardown complete")
                         dict.pop("peer-name")
 
-                    if n == ringSize:
+                    if n == ringSize:                                   # if teardown complete
                         print("back to leader")
-                        reorderPeersJoining(peers, lNeighbor)
+                        newPeers = reorderPeersJoining(peers, lNeighbor)
+                        sendNewPeers(newPeers, lNeighbor)                        
                         break
 
                     teardown(n+1, rNeighbor, "teardown-join")
@@ -808,9 +809,6 @@ def initTeardown(name):                                                     # jo
 
 
 def reorderPeersJoining(peers, joiner):                                     # leader reorders peers
-    print(joiner)
-    print("peers before joiner: %s\n" %peers)
-
     newP = {}
     newP["peer-name"] = joiner[0]
     newP["IP"] = joiner[1]
@@ -824,7 +822,16 @@ def reorderPeersJoining(peers, joiner):                                     # le
         newPeers[i+1] = {}
         newPeers[i+1] = peers[i]
 
-    print("peers after joiner: %s\n" %newPeers)
     return newPeers
+
+
+def sendNewPeers(newPeers, lNeighbor):
+    commandDict = {}
+    commandDict["command"] = "teardown-complete"
+    commandDict["peers"] = newPeers
+    jsonData = json.dumps(commandDict)
+    pSock.sendto(jsonData.encode(), (lNeighbor[1], lNeighbor[2]))
+    print("\nsent %s" %jsonData)
+    print("to %s\n" %lNeighbor[0])
 
 main()
