@@ -107,7 +107,7 @@ def main():
 
                 if int(msg) == 8:                                       # teardown()
                     n = ringSize - 1
-                    teardown(n, rNeighbor)
+                    teardown(n, rNeighbor, "teardown")
 
                 if int(msg) == 9:                                       # rebuildDHT()
                     year = input("Enter year (YYYY): \n")
@@ -246,7 +246,7 @@ def main():
                         setId(newPeers, -1, newSize, "reset-id", -1)
                     else:
                         n = n - 1
-                        teardown(n, rNeighbor) 
+                        teardown(n, rNeighbor, "teardown") 
 
 
 
@@ -296,10 +296,16 @@ def main():
                     n = dict["count"]
                     print("count: %d" %n)
 
-                    if count == ringSize:                               # if current leader
+                    if n == 0:                               # if current leader
                         savePeerToNotify(addr, dict, "teardown complete")
                         dict.pop("peer-name")
-                        dict["count"] = n - 1 
+
+                    if n == ringSize:
+                        print("back to leader")
+                        reorderPeersJoining(peers, lNeighbor)
+                        break
+
+                    teardown(n+1, rNeighbor, "teardown-join")
 
                     
 
@@ -699,9 +705,9 @@ def leaveDHT():
     print("\nsent %s\n" %jsonData)
 
 
-def teardown(n, recipient):
+def teardown(n, recipient, command):
     commandDict = {}
-    commandDict["command"] = "teardown"
+    commandDict["command"] = command
     commandDict["count"] = n
     commandDict["peer-name"] = peerName
     jsonData = json.dumps(commandDict)
@@ -758,6 +764,7 @@ def reorderPeersLeaving(peers, id):
     return newPeers
 
 
+
 def rebuildDHT(year):
     commandDict = {}
     commandDict["command"] = "rebuild-dht"
@@ -779,7 +786,7 @@ def dhtRebuilt(receiver, optional):
     pSock.sendto(jsonData.encode(), (receiver[1], receiver[2]))
 
 
-def joinDHT(name):
+def joinDHT(name):                                                          # joining-peer sends to manager
     commandDict = {}
     commandDict["command"] = "joinDHT"
     commandDict["peer-name"] = name
@@ -789,15 +796,35 @@ def joinDHT(name):
     print("to manager\n")
     
 
-def initTeardown(name):
+def initTeardown(name):                                                     # joining-peer sends to leader
     commandDict = {}
     commandDict["command"] = "teardown-join"
     commandDict["peer-name"] = name
-    commandDict["count"] = ringSize
+    commandDict["count"] = 0
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (leader[1], leader[2]))
     print("\nsent: %s" %jsonData)
     print("to %s\n" %leader[0])
 
+
+def reorderPeersJoining(peers, joiner):                                     # leader reorders peers
+    print(joiner)
+    print("peers before joiner: %s\n" %peers)
+
+    newP = {}
+    newP["peer-name"] = joiner[0]
+    newP["IP"] = joiner[1]
+    newP["p-port"] = joiner[2]
+
+    newPeers = {}
+    newPeers[0] = {}
+    newPeers[0] = newP
+
+    for i in range(0, ringSize):
+        newPeers[i+1] = {}
+        newPeers[i+1] = peers[i]
+
+    print("peers after joiner: %s\n" %newPeers)
+    return newPeers
 
 main()
