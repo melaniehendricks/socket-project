@@ -29,7 +29,6 @@ def main():
     peerIP = "0.0.0.0"
     group = 13
     mgrPort = args.m_port
-    DHTflag = False
     s = 0
     records = 0
     startingPeer = []
@@ -120,6 +119,17 @@ def main():
                 if int(msg) == 11:                                      # initTeardown()                    
                     initTeardown(peerName)
                     
+                if int(msg) == 12:
+                    YYYY = input("Enter year (YYYY): \n")
+                    constructDHTs(YYYY)
+
+                if int(msg) == 13:
+                    manager = []
+                    manager.append("manager")
+                    manager.append(mgrIP)
+                    manager.append(mgrPort)
+
+                    dhtRebuilt("dht-rebuilt-join", manager, peerName)
 
 
 
@@ -159,7 +169,10 @@ def main():
                     if command == "leaveDHT":
                         print("received: %s\n" %code)
 
-                    if command == "dht-rebuilt":
+                    if command == "dht-rebuilt-leave":
+                        print("received: %s\n" %code)
+
+                    if command == "dht-rebuilt-join":
                         print("received: %s\n" %code)
 
                     if command == "joinDHT":
@@ -179,6 +192,7 @@ def main():
                 dict = eval(decoded)
                 command = dict["command"]
                 if command == "set-id":                                 # set-id
+                    print("command received: %s\n" %command)
                     id = getId(dict)
                     print("id: %d" %id)
 
@@ -190,7 +204,6 @@ def main():
                         print("logical ring setup complete")
                         divider()
                     else:
-                        print("command received: %s\n" %command)
                         setId(dict, id, n, command, count)
 
 
@@ -277,13 +290,13 @@ def main():
 
 
 
-                if command == "dht-rebuilt":                            # dht-rebuilt
+                if command.startswith("dht-rebuilt-"):                            # dht-rebuilt
                     print("command received: %s" %command)
                     manager = []
                     manager.append("manager")
                     manager.append(mgrIP)
                     manager.append(mgrPort)
-                    dhtRebuilt(manager, rNeighbor[0])                   # leaving-peer alerts manager
+                    dhtRebuilt(command, manager, rNeighbor[0])                   # leaving-peer alerts manager
 
 
 
@@ -309,6 +322,18 @@ def main():
                     teardown(n+1, rNeighbor, "teardown-join")
 
                     
+                
+                if command == "teardown-complete":                      # teardown-complete
+                    print("command received: %s" %command)
+                    print("from %s" %leader[0])
+                    
+                    id = 0
+                    ringSize = dict["ringsize"]
+                    dict.pop("command")
+                    dict.pop("ringsize")
+                    peers = dict["peers"]
+                    setId(peers, id, ringSize+1, "set-id", 0)            # new leader sends to right neighbor (old leader)
+
 
 
 
@@ -400,6 +425,8 @@ def setId(dict, id, n, command, count):
                 peer = dict.get(item)
                 peers[index] = peer
                 index += 1
+
+        print("set-id peers: %s" %peers)
 
         i = 0
         for peer in peers.values():
@@ -517,7 +544,7 @@ def constructDHTs(YYYY):
     print("Reached end of records.\n")
     
     if rebuildingDHT is True:                                   # new leader alerts leaving-peer
-        dhtRebuilt(lNeighbor, "")
+        dhtRebuilt("dht-rebuilt-leave", lNeighbor, "")
 
             
 
@@ -776,9 +803,9 @@ def rebuildDHT(year):
     pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
 
 
-def dhtRebuilt(receiver, optional):
+def dhtRebuilt(command, receiver, optional):
     commandDict = {}
-    commandDict["command"] = "dht-rebuilt"
+    commandDict["command"] = command
     commandDict["peer-name"] = peerName
     commandDict["new-leader"] = optional
     jsonData = json.dumps(commandDict)
@@ -814,20 +841,28 @@ def reorderPeersJoining(peers, joiner):                                     # le
     newP["IP"] = joiner[1]
     newP["p-port"] = joiner[2]
 
+    print("ring size: %d" %ringSize)
+    print("peers: %s" %peers)
+
     newPeers = {}
     newPeers[0] = {}
     newPeers[0] = newP
+    print("new peer: %s" %newP)
 
-    for i in range(0, ringSize):
-        newPeers[i+1] = {}
-        newPeers[i+1] = peers[i]
+    index = 1
+    for item in peers:                                       # save peers in ring
+        newPeers[index + 1] = {}
+        peer = peers.get(item)
+        newPeers[index + 1] = peer
+        index += 1
 
     return newPeers
 
 
-def sendNewPeers(newPeers, lNeighbor):
+def sendNewPeers(newPeers, lNeighbor):                                      # old leader sends to new leader 
     commandDict = {}
     commandDict["command"] = "teardown-complete"
+    commandDict["ringsize"] = ringSize
     commandDict["peers"] = newPeers
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (lNeighbor[1], lNeighbor[2]))

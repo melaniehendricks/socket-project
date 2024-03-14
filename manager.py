@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
-    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer, joining_peer, leader                          # global vars
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, check_peer, leader                          # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
@@ -24,8 +24,7 @@ def main():
     group = 13
     DHT_complete = False
     DHT_rebuilt = ""
-    leaving_peer = ""
-    joining_peer = ""
+    check_peer = ""
     leader = ""
                                            
 
@@ -83,12 +82,13 @@ def main():
                 command = dict.get("command")
 
                 peerName = dict.get("peer-name")
+
                 if DHT_rebuilt == False:
-                    if leaving_peer != peerName:
+                    if check_peer != peerName:
                         failureMsg(command, "DHT not yet rebuilt", peerIP, pmPort)  # if DHT NOT rebuilt yet
                         break
                     else:
-                        if command == "dht-rebuilt":
+                        if command.startswith("dht-rebuilt-"):
                             DHT_rebuilt = True                  # ?????????????? "" or True
                             print("DHT has been rebuilt.\n")
                             updatePeers(command, dict, peerName)
@@ -173,7 +173,7 @@ def main():
                         failureMsg(command, "peer is not maintaining the DHT", peerIP, peer["m-port"])
                         break
                     else:
-                        leaving_peer = peerName
+                        check_peer = peerName
                         DHT_rebuilt = False
                         print("Waiting for DHT to be rebuilt ......\n")
                         awaitRebuild(peer, command, "")
@@ -189,7 +189,7 @@ def main():
                         failureMsg(command, "peer is already part of the DHT", peerIP, peer["m-port"])
                         break
                     else:
-                        joining_peer = peerName
+                        check_peer = peerName
                         DHT_rebuilt = False
                         print("Waiting for DHT to be rebuilt ......\n")
 
@@ -332,8 +332,10 @@ def awaitRebuild(peer, command, optional):
 
 def updatePeers(command, dict, peerName):
     peer = getPeer(peerName)
-    peer["state"] = "free"                                                  # update state of leaving-peer to free
-    print("state of %s is set to %s" %(peerName, peer["state"]))
+    
+    if command == "dht-rebuilt-leave":                                          # if peer leaving, 
+        peer["state"] = "free"                                                  # update state of leaving-peer to free
+        print("state of %s is set to %s" %(peerName, peer["state"]))
 
     for item in peerDict:                                                   # update state of former leader to inDHT
         p = peerDict.get(item)
