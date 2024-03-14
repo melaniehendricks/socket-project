@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
-    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, leaving_peer                          # global vars
+    global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, check_peer, leader                          # global vars
 
     # assign arguments to variables
     mgrIP = "0.0.0.0"
@@ -24,7 +24,8 @@ def main():
     group = 13
     DHT_complete = False
     DHT_rebuilt = ""
-    leaving_peer = ""
+    check_peer = ""
+    leader = ""
                                            
 
     # packet variables
@@ -81,12 +82,13 @@ def main():
                 command = dict.get("command")
 
                 peerName = dict.get("peer-name")
+
                 if DHT_rebuilt == False:
-                    if leaving_peer != peerName:
+                    if check_peer != peerName:
                         failureMsg(command, "DHT not yet rebuilt", peerIP, pmPort)  # if DHT NOT rebuilt yet
                         break
                     else:
-                        if command == "dht-rebuilt":
+                        if command.startswith("dht-rebuilt-"):
                             DHT_rebuilt = True                  # ?????????????? "" or True
                             print("DHT has been rebuilt.\n")
                             updatePeers(command, dict, peerName)
@@ -161,20 +163,45 @@ def main():
                     
                 # peer wants to leave DHT
                 if command == "leaveDHT":
-                    #global leaving_peer
-                    leaving_peer = peerName
-                    DHT_rebuilt = False
-                    print("Waiting for DHT to be rebuilt ......\n")
-                    peer = getPeer(peerName)
                     if DHT_complete is False:
                         failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
-                        break                    
+                        break             
+                
+                    peer = getPeer(peerName)       
                     state = peer["state"]
                     if state == "free":
                         failureMsg(command, "peer is not maintaining the DHT", peerIP, peer["m-port"])
                         break
                     else:
-                        awaitRebuild(peer, command)
+                        check_peer = peerName
+                        DHT_rebuilt = False
+                        print("Waiting for DHT to be rebuilt ......\n")
+                        awaitRebuild(peer, command, "")
+
+                    
+                if command == "joinDHT":
+                    if DHT_complete is False:
+                        failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
+                        break
+                    peer = getPeer(peerName)
+                    state = peer["state"]
+                    if state != "free":
+                        failureMsg(command, "peer is already part of the DHT", peerIP, peer["m-port"])
+                        break
+                    else:
+                        check_peer = peerName
+                        DHT_rebuilt = False
+                        print("Waiting for DHT to be rebuilt ......\n")
+
+                        # find leader
+                        for item in peerDict:                                                   # update state of former leader to inDHT
+                            p = peerDict.get(item)
+                            if p["state"] == "leader":
+                                leader = p
+                                break
+                        awaitRebuild(peer, command, leader)
+
+
                 
 
 
@@ -228,7 +255,10 @@ def setupDHT(peer, n, command):
         responseDict[i] = {}
         
     peer["state"] = "leader"                                            # change state to "leader"
+    global leader
+    leader = peer
     reason = "** state of " + peer["peer-name"] + " is set to " + peer["state"] + " **"
+    
     responseDict["reason"] = reason
     responseDict[peerCount]["peer-name"] = peer["peer-name"]
     responseDict[peerCount]["IP"] = peer["IP"]
@@ -289,10 +319,11 @@ def queryDHT(name, peer, command):
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
-def awaitRebuild(peer, command):
+def awaitRebuild(peer, command, optional):
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
+    responseDict["leader"] = optional
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)
@@ -301,8 +332,10 @@ def awaitRebuild(peer, command):
 
 def updatePeers(command, dict, peerName):
     peer = getPeer(peerName)
-    peer["state"] = "free"                                                  # update state of leaving-peer to free
-    print("state of %s is set to %s" %(peerName, peer["state"]))
+    
+    if command == "dht-rebuilt-leave":                                          # if peer leaving, 
+        peer["state"] = "free"                                                  # update state of leaving-peer to free
+        print("state of %s is set to %s" %(peerName, peer["state"]))
 
     for item in peerDict:                                                   # update state of former leader to inDHT
         p = peerDict.get(item)
@@ -312,6 +345,7 @@ def updatePeers(command, dict, peerName):
             break
 
     l = dict["new-leader"]
+    global leader
     leader = getPeer(l)
     leader["state"] = "leader"                                              # update state of new leader
     print("state of %s is set to %s\n" %(l, leader["state"]))
