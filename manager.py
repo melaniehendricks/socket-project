@@ -329,11 +329,12 @@ def queryDHT(name, peer, command):
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
-def awaitRebuild(peer, command, optional):
+def awaitRebuild(peer, command, leader):
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
-    responseDict["leader"] = optional
+    if leader != "":
+        responseDict["leader"] = leader
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)
@@ -343,22 +344,29 @@ def awaitRebuild(peer, command, optional):
 def updatePeers(command, dict, peerName):
     peer = getPeer(peerName)
     
-    if command == "dht-rebuilt-leave":                                          # if peer leaving, 
-        peer["state"] = "free"                                                  # update state of leaving-peer to free
-        print("state of %s is set to %s" %(peerName, peer["state"]))
+    if command == "dht-rebuilt-leave":                                          # if peer is leaving
+        global leader
+        l = dict["new-leader"]
+        leader = getPeer(l)                                                     # get peer to be leader
+        leader["state"] = "leader"                                              # update state to new leader
+        print("state of %s is set to %s\n" %(l, leader["state"]))               
 
-    for item in peerDict:                                                   # update state of former leader to inDHT
-        p = peerDict.get(item)
-        if p["state"] == "leader":
-            p["state"] = "inDHT"
-            print("state of %s is set to %s" %(p["peer-name"], p["state"]))
-            break
+        peer["state"] = "free"
+        print("state of %s is set to %s\n" %(peer["peer-name"], peer["state"]))
+                    
+                
+    
+    if command == "dht-rebuilt-join":                                           # if peer is joining DHT,
+        peer["state"] = "leader"
+        print("state of %s is set to %s" %(peer["peer-name"], peer["state"]))
 
-    l = dict["new-leader"]
-    global leader
-    leader = getPeer(l)
-    leader["state"] = "leader"                                              # update state of new leader
-    print("state of %s is set to %s\n" %(l, leader["state"]))
+        for item in peerDict:                                                   # update state of former leader to inDHT
+            p = peerDict.get(item)
+            if p["state"] == "leader":
+                p["state"] = "inDHT"
+                print("state of %s is set to %s" %(p["peer-name"], p["state"]))
+                break
+
 
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
@@ -371,18 +379,26 @@ def updatePeers(command, dict, peerName):
 
 def deregister(command, peerName):
     peer = getPeer(peerName)
+    newPeers = {}
+    
+    global peerDict
+    global names
+    names = []
 
-    newPeerDict = {}
     i = 0
+    
     for item in peerDict:
         p = peerDict.get(item)
         if p["peer-name"] != peerName:
-            newPeerDict[i] = {}
-            newPeerDict[i] = p
+            newPeers[i] = {}
+            newPeers[i] = p
+            names.append(p["peer-name"])
             i += 1
 
-    print("%s has been deregistered \n")
-    peerDict = newPeerDict
+    print("%s has been deregistered \n" %peerName)
+    peerDict = newPeers
+
+    print("peers: %s" %names)
 
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
