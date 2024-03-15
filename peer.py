@@ -95,7 +95,7 @@ def main():
                     DHTcomplete()
 
                 if int(msg) == 5:                                       # queryDHT()
-                    queryDHT()
+                    msgToManager("queryDHT", peerName)
 
                 if int(msg) == 6:                                       # beginQuery()
                     eventId = input("Enter event ID: \n")
@@ -123,7 +123,7 @@ def main():
                     YYYY = input("Enter year (YYYY): \n")
                     constructDHTs(YYYY)
 
-                if int(msg) == 13:
+                if int(msg) == 13:                                      # DHTrebuilt()
                     manager = []
                     manager.append("manager")
                     manager.append(mgrIP)
@@ -131,6 +131,9 @@ def main():
 
                     dhtRebuilt("dht-rebuilt-join", manager, peerName)
 
+                if int(msg) == 14:
+                    peerName = input("Enter peer name: \n")
+                    msgToManager("deregister", peerName)
 
 
             
@@ -183,6 +186,10 @@ def main():
                         leader.append(current["p-port"])
                         print("current leader: %s\n" %leader)
                         
+                    if command == "deregister":
+                        print("received: %s" %code)
+
+
                     
             # ============ P E E R   S O C K E T  =======================
             if key.fd == pSock.fileno():
@@ -575,6 +582,7 @@ def store(id, s, pos, row, header):
     print("to %s at %d\n" %(rNeighbor[1], rNeighbor[2]))
     pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
 
+
 def match(pos, row, header):
     print("stored event locally at position %d" %pos)
     print(row)
@@ -597,13 +605,14 @@ def DHTcomplete():                                          # send to manager
     print("\nsent %s" %jsonData)
 
 
-def queryDHT():                                             # send to manager
+def msgToManager(command, peerName):                        # send to manager
     commandDict = {}
-    commandDict["command"] = "queryDHT"
+    commandDict["command"] = command
     commandDict["peer-name"] = peerName
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     print("\nsent %s" %jsonData)
+
 
 
 def beginQuery(peer, eventId):                              # send findEvent() to starting peer, S
@@ -868,5 +877,8 @@ def sendNewPeers(newPeers, lNeighbor):                                      # ol
     pSock.sendto(jsonData.encode(), (lNeighbor[1], lNeighbor[2]))
     print("\nsent %s" %jsonData)
     print("to %s\n" %lNeighbor[0])
+
+
+
 
 main()

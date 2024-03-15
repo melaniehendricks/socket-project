@@ -178,7 +178,7 @@ def main():
                         print("Waiting for DHT to be rebuilt ......\n")
                         awaitRebuild(peer, command, "")
 
-                    
+                # peer wants to join DHT
                 if command == "joinDHT":
                     if DHT_complete is False:
                         failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
@@ -200,6 +200,16 @@ def main():
                                 leader = p
                                 break
                         awaitRebuild(peer, command, leader)
+
+
+                # peer wants to deregister
+                if command == "deregister":
+                    peer = getPeer(peerName)
+                    if peer["state"] != "free":
+                        failureMsg(command, "peer is currently part of DHT", peerIP, peer["m-port"])
+                        break
+                    else:
+                        deregister(command, peerName)
 
 
                 
@@ -298,8 +308,8 @@ def DHTComplete(peer, command):
 
 
 def queryDHT(name, peer, command):
-    print("check state")
-    print(peer)
+    print("checking state...")
+    print("state of %s is %s\n" %(peer["peer-name"], peer["state"]))
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
@@ -357,5 +367,30 @@ def updatePeers(command, dict, peerName):
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))              # send leaving-peer response
     print("response: %s" %jsonData)
     print("sent to %s on port %d\n" %(peerName, peer["m-port"]))
+
+
+def deregister(command, peerName):
+    peer = getPeer(peerName)
+
+    newPeerDict = {}
+    i = 0
+    for item in peerDict:
+        p = peerDict.get(item)
+        if p["peer-name"] != peerName:
+            newPeerDict[i] = {}
+            newPeerDict[i] = p
+            i += 1
+
+    print("%s has been deregistered \n")
+    peerDict = newPeerDict
+
+    responseDict = {}
+    responseDict["return-code"] = "SUCCESS"
+    responseDict["command"] = command
+    jsonData = json.dumps(responseDict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+    print("response: %s" %jsonData)
+    print("sent to %s on port %d\n" %(peerName, peer["m-port"]))
+
 
 main()
