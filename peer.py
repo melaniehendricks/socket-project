@@ -131,9 +131,19 @@ def main():
 
                     dhtRebuilt("dht-rebuilt-join", manager, peerName)
 
-                if int(msg) == 14:
+                if int(msg) == 14:                                      # deregister()
                     peerName = input("Enter peer name: \n")
                     msgToManager("deregister", peerName)
+
+                if int(msg) == 15:                                      # alert manager of teardown
+                    peerName = input("Enter peer name: \n")
+                    msgToManager("teardown-DHT", peerName)
+
+                if int(msg) == 16:                                      # teardown-DHT()
+                    teardown(1, rNeighbor, "teardown-DHT")
+
+                if int(msg) == 17:
+                    msgToManager("teardown-complete", peerName)
 
 
             
@@ -189,7 +199,13 @@ def main():
                     if command == "deregister":
                         print("received: %s" %code)
 
-                divider()
+                    if command == "teardown-DHT":
+                        print("received: %s" %code)
+
+                    if command == "teardown-complete":
+                        print("received: %s" %code)
+
+                    divider()
 
                     
             # ============ P E E R   S O C K E T  =======================
@@ -343,8 +359,20 @@ def main():
                     setId(peers, id, ringSize+1, "set-id", 0)            # new leader sends to right neighbor (old leader)
 
 
+                if command == "teardown-DHT":
+                    print("command received: %s" %command)
+                    fromPeer = dict["peer-name"]
+                    print("from %s\n" %fromPeer)
 
+                    delDHT()
+                    n = dict["count"]
+                    print("count: %d" %n)
 
+                    if n == ringSize:
+                        print("back to leader")
+                        msgToManager("teardown-complete", peerName)
+                    else:
+                        teardown(n+1, rNeighbor, "teardown-DHT")
 
 
 
