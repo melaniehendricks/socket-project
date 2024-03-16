@@ -46,6 +46,7 @@ def main():
     mSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     peerPort = bindToPorts(group, pSock)
     peer_mgrPort = bindToPorts(group, mSock)
+    divider()
 
     selector = selectors.DefaultSelector()
     selector.register(pSock, selectors.EVENT_READ)           # register peer socket to listen to
@@ -64,7 +65,6 @@ def main():
 
             # ============ K E Y B O A R D    I N P U T =======================
             if key.fd == sys.stdin.fileno():
-                divider()
                 msg = sys.stdin.readline()
                 if int(msg) == 0:
                     print(myDHT)
@@ -95,7 +95,7 @@ def main():
                     DHTcomplete()
 
                 if int(msg) == 5:                                       # queryDHT()
-                    queryDHT()
+                    msgToManager("queryDHT", peerName)
 
                 if int(msg) == 6:                                       # beginQuery()
                     eventId = input("Enter event ID: \n")
@@ -123,7 +123,7 @@ def main():
                     YYYY = input("Enter year (YYYY): \n")
                     constructDHTs(YYYY)
 
-                if int(msg) == 13:
+                if int(msg) == 13:                                      # DHTrebuilt()
                     manager = []
                     manager.append("manager")
                     manager.append(mgrIP)
@@ -131,12 +131,14 @@ def main():
 
                     dhtRebuilt("dht-rebuilt-join", manager, peerName)
 
+                if int(msg) == 14:
+                    peerName = input("Enter peer name: \n")
+                    msgToManager("deregister", peerName)
 
 
             
             # ============ M A N A G E R   S O C K E T =======================
             if key.fd == mSock.fileno():
-                divider()
                 msg, addr = sockToRead.recvfrom(1024)
                 #print(msg)
                 # decode msg + convert to Dictionary
@@ -147,6 +149,7 @@ def main():
                 if code == "FAILURE":                                   # failure 
                     print("received: %s\n" %code)     
                     parseFailureResponse(dict)
+                    divider()
                 else:                                                   # success
                     command = dict["command"]
                     if command == "register":
@@ -183,6 +186,11 @@ def main():
                         leader.append(current["p-port"])
                         print("current leader: %s\n" %leader)
                         
+                    if command == "deregister":
+                        print("received: %s" %code)
+
+                divider()
+
                     
             # ============ P E E R   S O C K E T  =======================
             if key.fd == pSock.fileno():
@@ -426,8 +434,6 @@ def setId(dict, id, n, command, count):
                 peers[index] = peer
                 index += 1
 
-        print("set-id peers: %s" %peers)
-
         i = 0
         for peer in peers.values():
             if id == ringSize-1:                                    #  peer n-1
@@ -542,6 +548,7 @@ def constructDHTs(YYYY):
         print('\n')
 
     print("Reached end of records.\n")
+    divider()
     
     if rebuildingDHT is True:                                   # new leader alerts leaving-peer
         dhtRebuilt("dht-rebuilt-leave", lNeighbor, "")
@@ -575,6 +582,7 @@ def store(id, s, pos, row, header):
     print("to %s at %d\n" %(rNeighbor[1], rNeighbor[2]))
     pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
 
+
 def match(pos, row, header):
     print("stored event locally at position %d" %pos)
     print(row)
@@ -597,13 +605,14 @@ def DHTcomplete():                                          # send to manager
     print("\nsent %s" %jsonData)
 
 
-def queryDHT():                                             # send to manager
+def msgToManager(command, peerName):                        # send to manager
     commandDict = {}
-    commandDict["command"] = "queryDHT"
+    commandDict["command"] = command
     commandDict["peer-name"] = peerName
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (mgrIP, mgrPort))
     print("\nsent %s" %jsonData)
+
 
 
 def beginQuery(peer, eventId):                              # send findEvent() to starting peer, S
@@ -618,6 +627,7 @@ def beginQuery(peer, eventId):                              # send findEvent() t
     jsonData = json.dumps(commandDict)
     pSock.sendto(jsonData.encode(), (peer[1], peer[2]))
     print("\nsent %s\n" % jsonData)
+    divider()
 
 
 
@@ -684,7 +694,7 @@ def hotPotato(ids, eventId, returnPeer, idSeq):
 
     rand = random.randint(0, len(ids)-1)
     next = ids[rand]                                                                    # choose who to pass eventId to
-    nextPeer = peers[next]
+    nextPeer = peers[str(next)]
     print("Passing to: %s\n" %nextPeer)
 
     commandDict = {}
@@ -704,9 +714,10 @@ def foundEvent(fields, event, idSeq):
     labeledEvent = zip(fields, event)
     for (f,e) in labeledEvent:
         print("%s: %s" %(f,e))
-    print("=====================================")
+    print("------------------------------------------")
     print(idSeq)
     print("")
+    divider()
 
 
 def eventNotFound(returnPeer, eventId):
@@ -803,11 +814,13 @@ def rebuildDHT(year):
     pSock.sendto(jsonData.encode(), (rNeighbor[1], rNeighbor[2]))
 
 
-def dhtRebuilt(command, receiver, optional):
+def dhtRebuilt(command, receiver, leader):
     commandDict = {}
     commandDict["command"] = command
     commandDict["peer-name"] = peerName
-    commandDict["new-leader"] = optional
+
+    if leader != "":
+        commandDict["new-leader"] = leader
     jsonData = json.dumps(commandDict)
     print("sent: %s" %jsonData)
     print("to %s\n" %(receiver[0]))
@@ -868,5 +881,8 @@ def sendNewPeers(newPeers, lNeighbor):                                      # ol
     pSock.sendto(jsonData.encode(), (lNeighbor[1], lNeighbor[2]))
     print("\nsent %s" %jsonData)
     print("to %s\n" %lNeighbor[0])
+
+
+
 
 main()

@@ -178,7 +178,7 @@ def main():
                         print("Waiting for DHT to be rebuilt ......\n")
                         awaitRebuild(peer, command, "")
 
-                    
+                # peer wants to join DHT
                 if command == "joinDHT":
                     if DHT_complete is False:
                         failureMsg(command, "DHT does not exist", peerIP, peer["m-port"])
@@ -200,6 +200,16 @@ def main():
                                 leader = p
                                 break
                         awaitRebuild(peer, command, leader)
+
+
+                # peer wants to deregister
+                if command == "deregister":
+                    peer = getPeer(peerName)
+                    if peer["state"] != "free":
+                        failureMsg(command, "peer is currently part of DHT", peerIP, peer["m-port"])
+                        break
+                    else:
+                        deregister(command, peerName)
 
 
                 
@@ -298,8 +308,8 @@ def DHTComplete(peer, command):
 
 
 def queryDHT(name, peer, command):
-    print("check state")
-    print(peer)
+    print("checking state...")
+    print("state of %s is %s\n" %(peer["peer-name"], peer["state"]))
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
@@ -319,11 +329,12 @@ def queryDHT(name, peer, command):
     print("sent to %s on port %d\n" %(peer["peer-name"], peer["m-port"]))
 
 
-def awaitRebuild(peer, command, optional):
+def awaitRebuild(peer, command, leader):
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
     responseDict["command"] = command
-    responseDict["leader"] = optional
+    if leader != "":
+        responseDict["leader"] = leader
     jsonData = json.dumps(responseDict)
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
     print("response: %s" %jsonData)
@@ -333,22 +344,29 @@ def awaitRebuild(peer, command, optional):
 def updatePeers(command, dict, peerName):
     peer = getPeer(peerName)
     
-    if command == "dht-rebuilt-leave":                                          # if peer leaving, 
-        peer["state"] = "free"                                                  # update state of leaving-peer to free
-        print("state of %s is set to %s" %(peerName, peer["state"]))
+    if command == "dht-rebuilt-leave":                                          # if peer is leaving
+        global leader
+        l = dict["new-leader"]
+        leader = getPeer(l)                                                     # get peer to be leader
+        leader["state"] = "leader"                                              # update state to new leader
+        print("state of %s is set to %s\n" %(l, leader["state"]))               
 
-    for item in peerDict:                                                   # update state of former leader to inDHT
-        p = peerDict.get(item)
-        if p["state"] == "leader":
-            p["state"] = "inDHT"
-            print("state of %s is set to %s" %(p["peer-name"], p["state"]))
-            break
+        peer["state"] = "free"
+        print("state of %s is set to %s\n" %(peer["peer-name"], peer["state"]))
+                    
+                
+    
+    if command == "dht-rebuilt-join":                                           # if peer is joining DHT,
+        peer["state"] = "leader"
+        print("state of %s is set to %s" %(peer["peer-name"], peer["state"]))
 
-    l = dict["new-leader"]
-    global leader
-    leader = getPeer(l)
-    leader["state"] = "leader"                                              # update state of new leader
-    print("state of %s is set to %s\n" %(l, leader["state"]))
+        for item in peerDict:                                                   # update state of former leader to inDHT
+            p = peerDict.get(item)
+            if p["state"] == "leader":
+                p["state"] = "inDHT"
+                print("state of %s is set to %s" %(p["peer-name"], p["state"]))
+                break
+
 
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
@@ -357,5 +375,38 @@ def updatePeers(command, dict, peerName):
     sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))              # send leaving-peer response
     print("response: %s" %jsonData)
     print("sent to %s on port %d\n" %(peerName, peer["m-port"]))
+
+
+def deregister(command, peerName):
+    peer = getPeer(peerName)
+    newPeers = {}
+    
+    global peerDict
+    global names
+    names = []
+
+    i = 0
+    
+    for item in peerDict:                                                   # new peer dict without peer deregistering
+        p = peerDict.get(item)
+        if p["peer-name"] != peerName:
+            newPeers[i] = {}
+            newPeers[i] = p
+            names.append(p["peer-name"])                                    # update names to not include peer deregistering
+            i += 1
+
+    print("%s has been deregistered \n" %peerName)
+    peerDict = newPeers
+
+    print("peers: %s" %names)
+
+    responseDict = {}
+    responseDict["return-code"] = "SUCCESS"
+    responseDict["command"] = command
+    jsonData = json.dumps(responseDict)
+    sock.sendto(jsonData.encode(), (peer["IP"], peer["m-port"]))
+    print("response: %s" %jsonData)
+    print("sent to %s on port %d\n" %(peerName, peer["m-port"]))
+
 
 main()
