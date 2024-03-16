@@ -387,12 +387,12 @@ def deregister(command, peerName):
 
     i = 0
     
-    for item in peerDict:
+    for item in peerDict:                                                   # new peer dict without peer deregistering
         p = peerDict.get(item)
         if p["peer-name"] != peerName:
             newPeers[i] = {}
             newPeers[i] = p
-            names.append(p["peer-name"])
+            names.append(p["peer-name"])                                    # update names to not include peer deregistering
             i += 1
 
     print("%s has been deregistered \n" %peerName)
