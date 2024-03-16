@@ -96,8 +96,12 @@ def main():
                             updatePeers(command, dict, peerName)
                                                                   
                 if teardown_complete == False:
-                    failureMsg(command, "teardown of DHT is not complete", peerIP, peer["m-port"])
-                    break                            
+                    if check_peer != peerName:
+                        failureMsg(command, "teardown of DHT is not complete", peerIP, peer["m-port"])
+                        break
+                    else:
+                        if command == "teardown-complete":
+                            updatePeers(command, dict, peerName)
 
 
                 # peer wants to register 
@@ -224,6 +228,7 @@ def main():
                         break
                     else:
                         teardown_complete = False
+                        check_peer = peerName
                         print("Waiting for DHT teardown confirmation... \n")
                         teardownDHT(command, peer)
 
@@ -358,11 +363,21 @@ def awaitRebuild(peer, command, leader):
 
 def updatePeers(command, dict, peerName):
     peer = getPeer(peerName)
-    
+
+
     if command == "dht-rebuilt-leave":                                          # if peer is leaving
         global leader
         l = dict["new-leader"]
         leader = getPeer(l)                                                     # get peer to be leader
+
+        for item in peerDict:                                                   # update state of former leader to inDHT
+            p = peerDict.get(item)
+            if p["state"] == "leader" and peerName != p["peer-name"] and p["peer-name"] != leader["peer-name"]:
+                p["state"] = "inDHT"
+                print("state of %s is set to %s" %(p["peer-name"], p["state"]))
+                break
+
+       
         leader["state"] = "leader"                                              # update state to new leader
         print("state of %s is set to %s\n" %(l, leader["state"]))               
 
@@ -382,6 +397,13 @@ def updatePeers(command, dict, peerName):
             
         peer["state"] = "leader"
         print("state of %s is set to %s" %(peer["peer-name"], peer["state"]))
+
+
+    if command == "teardown-complete":                                          # if DHT is torn down, 
+        for item in peerDict:
+            p = peerDict.get(item)
+            p["state"] = "free"                                                 # update state of all peers to free
+
 
     responseDict = {}
     responseDict["return-code"] = "SUCCESS"
