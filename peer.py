@@ -863,7 +863,7 @@ def reorderPeersJoining(peers, joiner):                                     # le
     print("new peer: %s" %newP)
 
     index = 1
-    for item in peers:                                       # save peers in ring
+    for item in peers:                                                      # save peers in ring
         newPeers[index + 1] = {}
         peer = peers.get(item)
         newPeers[index + 1] = peer
