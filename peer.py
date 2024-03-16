@@ -131,9 +131,13 @@ def main():
 
                     dhtRebuilt("dht-rebuilt-join", manager, peerName)
 
-                if int(msg) == 14:
+                if int(msg) == 14:                                      # deregister()
                     peerName = input("Enter peer name: \n")
                     msgToManager("deregister", peerName)
+
+                if int(msg) == 15:                                      # teardownDHT()
+                    peerName = input("Enter peer name: \n")
+                    msgToManager("teardown-DHT", peerName)
 
 
             
@@ -189,7 +193,10 @@ def main():
                     if command == "deregister":
                         print("received: %s" %code)
 
-                divider()
+                    if command == "teardown-DHT":
+                        print("received: %s" %code)
+
+                    divider()
 
                     
             # ============ P E E R   S O C K E T  =======================
