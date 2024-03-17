@@ -22,7 +22,7 @@ def main():
 
     global mgrIP, peerIP, mgrPort, peerPort, peer_mgrPort, pSock, mSock, peerName                                # global vars
     global peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor, rebuildingDHT    
-    global leader 
+    global leader, hashes
     ringSize = 0
     # assign arguments to variables
     mgrIP = args.m_ip
@@ -37,6 +37,7 @@ def main():
     lNeighbor = []    
     rebuildingDHT = False
     leader = []
+    hashes = []
 
 
     # packet variables
@@ -66,6 +67,16 @@ def main():
             # ============ K E Y B O A R D    I N P U T =======================
             if key.fd == sys.stdin.fileno():
                 msg = sys.stdin.readline()
+                if int(msg) == -3:
+                    print(myDHT.values())
+
+                if int(msg) == -2:
+                    print(myDHT.keys())
+
+                if int(msg) == -1:
+                    position = input("Please enter hash position to check: \n")
+                    printIndex(position)
+
                 if int(msg) == 0:
                     print(myDHT)
 
@@ -612,16 +623,24 @@ def store(id, s, pos, row, header):
 
 
 def match(pos, row, header):
-    print("stored event locally at position %d" %pos)
     print(row)
-    global fields 
-    fields = header
     global myDHT
-    myDHT[pos] = {}
-    myDHT[pos] = row                                        # store event in myDHT at position pos
-    #global records
-    #records += 1                                            # increment num records stored in peer
-    print("num records: %d\n" %len(myDHT))
+    global fields 
+    global records
+
+    fields = header
+    print("hashes: %s\n" %hashes)
+    if pos in hashes:
+        print("collision! position %d exists" %pos)
+        myDHT[pos].append(row)
+    else:
+        hashes.append(pos)
+        myDHT[pos] = []
+        myDHT[pos].append(row)
+    
+    print("stored event locally at position %d" %pos)
+    records += 1
+    print("num records: %d\n" %records)
 
 
 def DHTcomplete():                                          # send to manager
@@ -719,10 +738,10 @@ def findEvent(dict):
 
 def hotPotato(ids, eventId, returnPeer, idSeq):
     print("Event not found. HOT POTATO!")
-
+    print("peers: %s" %peers)
     rand = random.randint(0, len(ids)-1)
     next = ids[rand]                                                                    # choose who to pass eventId to
-    nextPeer = peers[str(next)]
+    nextPeer = peers[next]
     print("Passing to: %s\n" %nextPeer)
 
     commandDict = {}
@@ -781,6 +800,15 @@ def teardown(n, recipient, command):
     print("passing along to right neighbor: %s\n" %recipient[0])
     pSock.sendto(jsonData.encode(), (recipient[1], recipient[2]))
     print("\nsent %s\n" %jsonData)
+
+
+
+def printIndex(position):
+    pos = int(position)
+    events = myDHT[pos]
+    for event in events:
+        print(event)
+    
 
 
 def savePeerToNotify(addr, dict, event):                                    # right neighbor of leaving-peer or peer wanting to join                  
