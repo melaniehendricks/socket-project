@@ -9,14 +9,13 @@ import sys
 import json
 import csv
 
-# peer.py --m-ip 192.168.1.4 --m-port 7501 
+# peer.py --m-ip 192.168.1.4 --m-port 7500
 
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--m-ip", required=True, type=str)        # IP not sanitized
     parser.add_argument("--m-port", required=True, type=int)
-    #parser.add_argument("--p-port", type=int)
 
     args = parser.parse_args()
 
@@ -24,7 +23,6 @@ def main():
     global peers, id, ringSize, rNeighbor, myDHT, s, records, startingPeer, fields, lNeighbor, rebuildingDHT    
     global leader, hashes
     ringSize = 0
-    # assign arguments to variables
     mgrIP = args.m_ip
     peerIP = "0.0.0.0"
     group = 13
@@ -67,17 +65,12 @@ def main():
             # ============ K E Y B O A R D    I N P U T =======================
             if key.fd == sys.stdin.fileno():
                 msg = sys.stdin.readline()
-                if int(msg) == -3:
-                    print(myDHT.values())
 
-                if int(msg) == -2:
-                    print(myDHT.keys())
-
-                if int(msg) == -1:
+                if int(msg) == -1:                                                      # error checking
                     position = input("Please enter hash position to check: \n")
                     printIndex(position)
 
-                if int(msg) == 0:
+                if int(msg) == 0:                                                       # error checking
                     print(myDHT)
 
                 if int(msg) == 1:                                       # register()
@@ -86,8 +79,6 @@ def main():
                     global peerName
                     peerName = vals[0]
                     address = vals[1]
-                    #mport = vals[2]            # !!!!!!!!!!!! are these last 2 necessary since manager port is passed initially and peer port is generated immediately?
-                    #pport = vals[3]
                     register(address, peer_mgrPort, peerPort)
                     break
 
@@ -161,12 +152,11 @@ def main():
             # ============ M A N A G E R   S O C K E T =======================
             if key.fd == mSock.fileno():
                 msg, addr = sockToRead.recvfrom(1024)
-                #print(msg)
                 # decode msg + convert to Dictionary
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
-                #print(dict)
                 code = dict["return-code"]
+
                 if code == "FAILURE":                                   # failure 
                     print("received: %s\n" %code)     
                     parseFailureResponse(dict)
@@ -223,9 +213,11 @@ def main():
             # ============ P E E R   S O C K E T  =======================
             if key.fd == pSock.fileno():
                 divider()
+
                 msg, addr = sockToRead.recvfrom(1024)
                 decoded = msg.decode("utf-8")
                 dict = eval(decoded)
+
                 command = dict["command"]
                 if command == "set-id":                                 # set-id
                     print("command received: %s\n" %command)
@@ -554,8 +546,6 @@ def getId(dict):
     
 
 def constructDHTs(YYYY):
-    #global myDHT
-    #myDHT = {}
     fileName = "data/details-" + str(YYYY) + ".csv"
     rows = []
     with open(fileName, 'r') as csvfile:
@@ -574,7 +564,6 @@ def constructDHTs(YYYY):
         while prime == False:
             s += 1
             prime = isPrime(s)    
-        #print(s)
 
     for row in rows:
         print(row)
@@ -615,7 +604,7 @@ def store(id, s, pos, row, header):
     commandDict["table-size"] = s                           # table size
     commandDict["pos"] = pos                                # position at which to store event
     commandDict["event"] = row                              # event
-    commandDict["header"] = header
+    commandDict["header"] = header                          # header
     jsonData = json.dumps(commandDict)
     print("passing along to right neighbor: %s\n" %rNeighbor[0])
     print("sent: %s" %jsonData)
@@ -629,13 +618,13 @@ def match(pos, row, header):
     global records
 
     fields = header
-    if pos in hashes:
+    if pos in hashes:                                       # if pos already hashed to:
         print("collision! position %d exists" %pos)
-        myDHT[pos].append(row)
-    else:
-        hashes.append(pos)
+        myDHT[pos].append(row)                              # append event to array at pos
+    else:                                                   # otherwise, 
+        hashes.append(pos)                                  # add pos to hashes array
         myDHT[pos] = []
-        myDHT[pos].append(row)
+        myDHT[pos].append(row)                              # add event to array at pos
     
     print("stored event locally at position %d" %pos)
     records += 1
@@ -690,7 +679,6 @@ def findEvent(dict):
         for i in range(ringSize):
             identifiers.append(i)
         ids = identifiers
-    #print("ids: %s" %ids)    
 
     ids.remove(id)
     pos = int(eventId) % s
@@ -700,15 +688,15 @@ def findEvent(dict):
 
     if id == eid:                                                                       # if id matches      
         print("id == eid")  
-        #if index == None:                                                               # but no event, hot potato
-        if pos not in hashes:
+        if pos not in hashes:                                                           # but no event, hot potato
             print("no event")
             if len(ids) == 0:
-                if len(idSeq) == ringSize:                                                  # if no more peers to query
+                if len(idSeq) == ringSize:                                              # if no more peers to query
                     print("no more peers")
                     eventNotFound(returnPeer, eventId)
                     return
-            hotPotato(ids, eventId, returnPeer, idSeq)
+            else:
+                hotPotato(ids, eventId, returnPeer, idSeq)
 
         else:
             index = myDHT.get(pos)
