@@ -186,6 +186,7 @@ def main():
 
                     if command == "queryDHT":
                         print("received: %s\n" %code)
+                        startingPeer = []
                         startingPeer.append(dict["peer-name"])
                         startingPeer.append(dict["IP"])
                         startingPeer.append(dict["p-port"])
@@ -623,13 +624,11 @@ def store(id, s, pos, row, header):
 
 
 def match(pos, row, header):
-    print(row)
     global myDHT
     global fields 
     global records
 
     fields = header
-    print("hashes: %s\n" %hashes)
     if pos in hashes:
         print("collision! position %d exists" %pos)
         myDHT[pos].append(row)
@@ -696,35 +695,42 @@ def findEvent(dict):
     ids.remove(id)
     pos = int(eventId) % s
     print("Looking for: %s\n" %eventId)
-    #print("position: %d" %pos)
     eid = pos % ringSize
     idSeq.append(str(id) + ":" + peerName)
 
     if id == eid:                                                                       # if id matches      
         print("id == eid")  
-        event = myDHT.get(pos)       
-        if event == None:                                                               # but no event, hot potato
+        #if index == None:                                                               # but no event, hot potato
+        if pos not in hashes:
             print("no event")
+            if len(ids) == 0:
+                if len(idSeq) == ringSize:                                                  # if no more peers to query
+                    print("no more peers")
+                    eventNotFound(returnPeer, eventId)
+                    return
             hotPotato(ids, eventId, returnPeer, idSeq)
 
-        elif event[0] == eventId:                                                       # AND eventId matches
-            print("FOUND EVENT!\n")            
-            if peerName == returnPeer[0]:                                               # if peer == starting peer                
-                foundEvent(fields, event, idSeq)
-
-            else:                                                                       # otherwise, send to starting peer
-                print("Sending event to starting peer: %s" %returnPeer)
-                commandDict = {}
-                commandDict["return-code"] = "SUCCESS"                                  # return SUCCESS
-                commandDict["command"] = "foundEvent"
-                commandDict["event"] = event                                            # + event
-                commandDict["id-seq"] = idSeq                                           # + id sequence
-                jsonData = json.dumps(commandDict)
-                pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
-                print("\nsent %s\n" %jsonData)
-                print("to %s at %d" % (returnPeer[1], returnPeer[2]))
         else:
-            hotPotato(ids, eventId, returnPeer, idSeq)
+            index = myDHT.get(pos)
+            for event in index:
+                if event[0] == eventId:                                                 # AND eventId matches
+                    print("FOUND EVENT!\n")                                              
+                    if peerName == returnPeer[0]:                                               # if peer == starting peer                
+                        foundEvent(fields, event, idSeq)
+                        break
+
+                    else:                                                                       # otherwise, send to starting peer
+                        print("Sending event to starting peer: %s" %returnPeer)
+                        commandDict = {}
+                        commandDict["return-code"] = "SUCCESS"                                  # return SUCCESS
+                        commandDict["command"] = "foundEvent"
+                        commandDict["event"] = event                                            # + event
+                        commandDict["id-seq"] = idSeq                                           # + id sequence
+                        jsonData = json.dumps(commandDict)
+                        pSock.sendto(jsonData.encode(), (returnPeer[1], returnPeer[2]))
+                        print("\nsent %s\n" %jsonData)
+                        print("to %s at %d" % (returnPeer[1], returnPeer[2]))
+
                 
     else:                                                                               # if id does not match: hot potato     
         print("id != eid")
@@ -738,10 +744,14 @@ def findEvent(dict):
 
 def hotPotato(ids, eventId, returnPeer, idSeq):
     print("Event not found. HOT POTATO!")
-    print("peers: %s" %peers)
     rand = random.randint(0, len(ids)-1)
     next = ids[rand]                                                                    # choose who to pass eventId to
-    nextPeer = peers[next]
+    for item in peers:
+        if type(item) is str:
+            nextPeer = peers[str(next)]
+        else:
+            nextPeer = peers[next]
+
     print("Passing to: %s\n" %nextPeer)
 
     commandDict = {}
@@ -823,6 +833,8 @@ def savePeerToNotify(addr, dict, event):                                    # ri
 def delDHT():
     global myDHT
     myDHT = {}
+    global hashes
+    hashes = []
 
 
 def reorderPeersLeaving(peers, id):
