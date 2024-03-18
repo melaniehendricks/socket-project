@@ -99,6 +99,7 @@ def main():
                         break
                     else:
                         if command == "teardown-complete":
+                            teardown_complete = True
                             updatePeers(command, dict, peerName)
 
 
