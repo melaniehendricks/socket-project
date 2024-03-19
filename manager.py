@@ -13,13 +13,14 @@ import random
 def main():
     
     parser = argparse.ArgumentParser()
+    parser.add_argument("--ip", required=True, type=str)
     parser.add_argument("--port", required=True, type=int)
     args = parser.parse_args()
 
     global peerDict, sock, names, ports, DHT_complete, DHT_rebuilt, check_peer, leader, teardown_complete                          # global vars
 
     # assign arguments to variables
-    mgrIP = "0.0.0.0"
+    mgrIP = args.ip
     mgrPort = args.port
     group = 13
     DHT_complete = False
